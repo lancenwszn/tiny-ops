@@ -49,6 +49,38 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"notifications": {
+                  Row: {
+                    "actor_id": string | null,"body": string,"created_at": string,"entity_id": string | null,"entity_type": string | null,"id": string,"read_at": string | null,"title": string,"type": string,"url": string | null,"user_id": string,"workspace_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "actor_id"?: string | null,"body"?: string,"created_at"?: string,"entity_id"?: string | null,"entity_type"?: string | null,"id"?: string,"read_at"?: string | null,"title": string,"type": string,"url"?: string | null,"user_id": string,"workspace_id": string
+                  }
+                  Update: {
+                    "actor_id"?: string | null,"body"?: string,"created_at"?: string,"entity_id"?: string | null,"entity_type"?: string | null,"id"?: string,"read_at"?: string | null,"title"?: string,"type"?: string,"url"?: string | null,"user_id"?: string,"workspace_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "notifications_actor_id_fkey"
+      columns: ["actor_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "notifications_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "notifications_workspace_id_fkey"
+      columns: ["workspace_id"]
+isOneToOne: false
+      referencedRelation: "workspaces"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"plans": {
                   Row: {
                     "created_at": string,"currency": string,"description": string,"features": NonNullable<Json>,"id": string,"is_active": boolean,"limits": NonNullable<Json>,"name": string,"price_cents": number,"sort_order": number,"stripe_price_id": string | null,"updated_at": string
@@ -221,6 +253,11 @@ isOneToOne: false
 "get_invitation_preview":
 { Args: { "p_token": string }; Returns: {
               "email": string,"inviter_name": string,"role": Database["public"]['Enums']["workspace_role"],"status": string,"workspace_name": string
+            }[]
+                           },
+"search_workspace":
+{ Args: { "p_limit"?: number,"p_query": string,"p_workspace_id": string }; Returns: {
+              "id": string,"image_path": string,"kind": string,"subtitle": string,"title": string,"url": string
             }[]
                            }
           }
