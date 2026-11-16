@@ -109,6 +109,244 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"sop_acknowledgments": {
+                  Row: {
+                    "acknowledged_at": string,"id": string,"sop_id": string,"user_id": string,"version": number,"workspace_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "acknowledged_at"?: string,"id"?: string,"sop_id": string,"user_id": string,"version": number,"workspace_id": string
+                  }
+                  Update: {
+                    "acknowledged_at"?: string,"id"?: string,"sop_id"?: string,"user_id"?: string,"version"?: number,"workspace_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sop_acknowledgments_sop_id_version_fkey"
+      columns: ["sop_id","version"]
+isOneToOne: false
+      referencedRelation: "sop_versions"
+      referencedColumns: ["sop_id","version"]
+    },{
+      foreignKeyName: "sop_acknowledgments_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "sop_acknowledgments_workspace_id_sop_id_fkey"
+      columns: ["workspace_id","sop_id"]
+isOneToOne: false
+      referencedRelation: "sop_documents"
+      referencedColumns: ["workspace_id","id"]
+    }
+                  ]
+                },"sop_attachments": {
+                  Row: {
+                    "created_at": string,"file_name": string,"id": string,"mime_type": string,"size_bytes": number,"sop_id": string,"storage_path": string,"uploaded_by": string | null,"workspace_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"file_name": string,"id"?: string,"mime_type": string,"size_bytes": number,"sop_id": string,"storage_path": string,"uploaded_by"?: string | null,"workspace_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"file_name"?: string,"id"?: string,"mime_type"?: string,"size_bytes"?: number,"sop_id"?: string,"storage_path"?: string,"uploaded_by"?: string | null,"workspace_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sop_attachments_uploaded_by_fkey"
+      columns: ["uploaded_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "sop_attachments_workspace_id_sop_id_fkey"
+      columns: ["workspace_id","sop_id"]
+isOneToOne: false
+      referencedRelation: "sop_documents"
+      referencedColumns: ["workspace_id","id"]
+    }
+                  ]
+                },"sop_categories": {
+                  Row: {
+                    "archived_at": string | null,"color": string,"created_at": string,"created_by": string | null,"description": string,"id": string,"name": string,"position": number,"updated_at": string,"workspace_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "archived_at"?: string | null,"color"?: string,"created_at"?: string,"created_by"?: string | null,"description"?: string,"id"?: string,"name": string,"position"?: number,"updated_at"?: string,"workspace_id": string
+                  }
+                  Update: {
+                    "archived_at"?: string | null,"color"?: string,"created_at"?: string,"created_by"?: string | null,"description"?: string,"id"?: string,"name"?: string,"position"?: number,"updated_at"?: string,"workspace_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sop_categories_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "sop_categories_workspace_id_fkey"
+      columns: ["workspace_id"]
+isOneToOne: false
+      referencedRelation: "workspaces"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"sop_documents": {
+                  Row: {
+                    "archived_at": string | null,"category_id": string | null,"created_at": string,"created_by": string | null,"current_version": number,"description": string,"id": string,"owner_id": string | null,"published_at": string | null,"requires_acknowledgment": boolean,"search": unknown,"search_body": string,"status": Database["public"]['Enums']["sop_status"],"title": string,"updated_at": string,"updated_by": string | null,"visibility": Database["public"]['Enums']["sop_visibility"],"workspace_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "archived_at"?: string | null,"category_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"current_version"?: number,"description"?: string,"id"?: string,"owner_id"?: string | null,"published_at"?: string | null,"requires_acknowledgment"?: boolean,"search"?: never,"search_body"?: string,"status"?: Database["public"]['Enums']["sop_status"],"title": string,"updated_at"?: string,"updated_by"?: string | null,"visibility"?: Database["public"]['Enums']["sop_visibility"],"workspace_id": string
+                  }
+                  Update: {
+                    "archived_at"?: string | null,"category_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"current_version"?: number,"description"?: string,"id"?: string,"owner_id"?: string | null,"published_at"?: string | null,"requires_acknowledgment"?: boolean,"search"?: never,"search_body"?: string,"status"?: Database["public"]['Enums']["sop_status"],"title"?: string,"updated_at"?: string,"updated_by"?: string | null,"visibility"?: Database["public"]['Enums']["sop_visibility"],"workspace_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sop_documents_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "sop_documents_updated_by_fkey"
+      columns: ["updated_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "sop_documents_workspace_id_category_id_fkey"
+      columns: ["workspace_id","category_id"]
+isOneToOne: false
+      referencedRelation: "sop_categories"
+      referencedColumns: ["workspace_id","id"]
+    },{
+      foreignKeyName: "sop_documents_workspace_id_fkey"
+      columns: ["workspace_id"]
+isOneToOne: false
+      referencedRelation: "workspaces"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "sop_documents_workspace_id_owner_id_fkey"
+      columns: ["workspace_id","owner_id"]
+isOneToOne: false
+      referencedRelation: "workspace_members"
+      referencedColumns: ["workspace_id","user_id"]
+    }
+                  ]
+                },"sop_drafts": {
+                  Row: {
+                    "description": string,"dirty": boolean,"revision": number,"sections": NonNullable<Json>,"sop_id": string,"title": string,"updated_at": string,"updated_by": string | null,"workspace_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "description"?: string,"dirty"?: boolean,"revision"?: number,"sections"?: NonNullable<Json>,"sop_id": string,"title": string,"updated_at"?: string,"updated_by"?: string | null,"workspace_id": string
+                  }
+                  Update: {
+                    "description"?: string,"dirty"?: boolean,"revision"?: number,"sections"?: NonNullable<Json>,"sop_id"?: string,"title"?: string,"updated_at"?: string,"updated_by"?: string | null,"workspace_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sop_drafts_updated_by_fkey"
+      columns: ["updated_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "sop_drafts_workspace_id_sop_id_fkey"
+      columns: ["workspace_id","sop_id"]
+isOneToOne: false
+      referencedRelation: "sop_documents"
+      referencedColumns: ["workspace_id","id"]
+    }
+                  ]
+                },"sop_permissions": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"id": string,"role": Database["public"]['Enums']["workspace_role"] | null,"sop_id": string,"user_id": string | null,"workspace_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"role"?: Database["public"]['Enums']["workspace_role"] | null,"sop_id": string,"user_id"?: string | null,"workspace_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"role"?: Database["public"]['Enums']["workspace_role"] | null,"sop_id"?: string,"user_id"?: string | null,"workspace_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sop_permissions_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "sop_permissions_workspace_id_sop_id_fkey"
+      columns: ["workspace_id","sop_id"]
+isOneToOne: false
+      referencedRelation: "sop_documents"
+      referencedColumns: ["workspace_id","id"]
+    },{
+      foreignKeyName: "sop_permissions_workspace_id_user_id_fkey"
+      columns: ["workspace_id","user_id"]
+isOneToOne: false
+      referencedRelation: "workspace_members"
+      referencedColumns: ["workspace_id","user_id"]
+    }
+                  ]
+                },"sop_steps": {
+                  Row: {
+                    "attachment_id": string | null,"created_at": string,"id": string,"instructions": string,"notes": string,"position": number,"sop_id": string,"title": string,"workspace_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "attachment_id"?: string | null,"created_at"?: string,"id"?: string,"instructions"?: string,"notes"?: string,"position": number,"sop_id": string,"title": string,"workspace_id": string
+                  }
+                  Update: {
+                    "attachment_id"?: string | null,"created_at"?: string,"id"?: string,"instructions"?: string,"notes"?: string,"position"?: number,"sop_id"?: string,"title"?: string,"workspace_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sop_steps_sop_id_attachment_id_fkey"
+      columns: ["sop_id","attachment_id"]
+isOneToOne: false
+      referencedRelation: "sop_attachments"
+      referencedColumns: ["sop_id","id"]
+    },{
+      foreignKeyName: "sop_steps_workspace_id_sop_id_fkey"
+      columns: ["workspace_id","sop_id"]
+isOneToOne: false
+      referencedRelation: "sop_documents"
+      referencedColumns: ["workspace_id","id"]
+    }
+                  ]
+                },"sop_versions": {
+                  Row: {
+                    "category_name": string | null,"description": string,"id": string,"published_at": string,"published_by": string | null,"restored_from_version": number | null,"revision_note": string,"sections": NonNullable<Json>,"sop_id": string,"steps": NonNullable<Json>,"title": string,"version": number,"workspace_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "category_name"?: string | null,"description"?: string,"id"?: string,"published_at"?: string,"published_by"?: string | null,"restored_from_version"?: number | null,"revision_note"?: string,"sections"?: NonNullable<Json>,"sop_id": string,"steps"?: NonNullable<Json>,"title": string,"version": number,"workspace_id": string
+                  }
+                  Update: {
+                    "category_name"?: string | null,"description"?: string,"id"?: string,"published_at"?: string,"published_by"?: string | null,"restored_from_version"?: number | null,"revision_note"?: string,"sections"?: NonNullable<Json>,"sop_id"?: string,"steps"?: NonNullable<Json>,"title"?: string,"version"?: number,"workspace_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sop_versions_published_by_fkey"
+      columns: ["published_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "sop_versions_workspace_id_sop_id_fkey"
+      columns: ["workspace_id","sop_id"]
+isOneToOne: false
+      referencedRelation: "sop_documents"
+      referencedColumns: ["workspace_id","id"]
+    }
+                  ]
                 },"stripe_events": {
                   Row: {
                     "id": string,"processed_at": string,"type": string
@@ -242,27 +480,65 @@ isOneToOne: false
             "accept_invitation":
 { Args: { "p_token": string }; Returns: string
                            },
+"acknowledge_sop":
+{ Args: { "p_sop_id": string }; Returns: number
+                           },
+"archive_sop":
+{ Args: { "p_sop_id": string }; Returns: undefined
+                           },
 "create_invitation":
 { Args: { "p_email": string,"p_role"?: Database["public"]['Enums']["workspace_role"],"p_workspace_id": string }; Returns: {
               "invitation_id": string,"token": string
             }[]
                            },
+"create_sop":
+{ Args: { "p_category_id"?: string,"p_description"?: string,"p_title": string,"p_workspace_id": string }; Returns: string
+                           },
 "create_workspace":
 { Args: { "p_description"?: string,"p_name": string,"p_timezone"?: string }; Returns: string
+                           },
+"delete_sop_category":
+{ Args: { "p_category_id": string,"p_reassign_to"?: string }; Returns: undefined
+                           },
+"duplicate_sop":
+{ Args: { "p_sop_id": string }; Returns: string
                            },
 "get_invitation_preview":
 { Args: { "p_token": string }; Returns: {
               "email": string,"inviter_name": string,"role": Database["public"]['Enums']["workspace_role"],"status": string,"workspace_name": string
             }[]
                            },
+"get_sop_acknowledgments":
+{ Args: { "p_sop_id": string }; Returns: {
+              "acknowledged_at": string,"acknowledged_version": number,"avatar_path": string,"current_version": number,"email": string,"full_name": string,"role": Database["public"]['Enums']["workspace_role"],"user_id": string
+            }[]
+                           },
+"publish_sop":
+{ Args: { "p_note"?: string,"p_sop_id": string }; Returns: number
+                           },
+"restore_sop_version":
+{ Args: { "p_discard_unpublished"?: boolean,"p_note"?: string,"p_sop_id": string,"p_version": number }; Returns: number
+                           },
+"save_sop_draft":
+{ Args: { "p_category_id": string,"p_description": string,"p_expected_revision": number,"p_owner_id": string,"p_requires_acknowledgment": boolean,"p_sections": Json,"p_sop_id": string,"p_steps": Json,"p_title": string }; Returns: number
+                           },
+"search_sop_ids":
+{ Args: { "p_query": string,"p_workspace_id": string }; Returns: string[]
+                           },
 "search_workspace":
 { Args: { "p_limit"?: number,"p_query": string,"p_workspace_id": string }; Returns: {
               "id": string,"image_path": string,"kind": string,"subtitle": string,"title": string,"url": string
             }[]
+                           },
+"set_sop_access":
+{ Args: { "p_members_role"?: boolean,"p_sop_id": string,"p_user_ids"?: (string)[],"p_visibility": Database["public"]['Enums']["sop_visibility"] }; Returns: undefined
+                           },
+"unarchive_sop":
+{ Args: { "p_sop_id": string }; Returns: Database["public"]['Enums']["sop_status"]
                            }
           }
           Enums: {
-            "member_status": "active"|"deactivated","subscription_status": "trialing"|"active"|"past_due"|"canceled"|"incomplete"|"incomplete_expired"|"unpaid"|"paused","workspace_role": "owner"|"admin"|"member"
+            "member_status": "active"|"deactivated","sop_status": "draft"|"published"|"archived","sop_visibility": "workspace"|"restricted","subscription_status": "trialing"|"active"|"past_due"|"canceled"|"incomplete"|"incomplete_expired"|"unpaid"|"paused","workspace_role": "owner"|"admin"|"member"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -382,7 +658,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "member_status": ["active", "deactivated"],"subscription_status": ["trialing", "active", "past_due", "canceled", "incomplete", "incomplete_expired", "unpaid", "paused"],"workspace_role": ["owner", "admin", "member"]
+            "member_status": ["active", "deactivated"],"sop_status": ["draft", "published", "archived"],"sop_visibility": ["workspace", "restricted"],"subscription_status": ["trialing", "active", "past_due", "canceled", "incomplete", "incomplete_expired", "unpaid", "paused"],"workspace_role": ["owner", "admin", "member"]
           }
         }
 } as const
