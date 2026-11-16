@@ -32,6 +32,17 @@
 - `search_workspace` runs with the caller's privileges (RLS applies). The workspace id comes from the server-validated active membership, never from the client. Tests confirm that searching a foreign workspace returns nothing.
 - The activity feed, which every member can read, no longer contains invitee email addresses (invitations themselves are visible to admins only).
 
+## SOP Library (Stage 3)
+- **Drafts and work in progress:** unpublished SOPs and unpublished edits of published SOPs live in owner/admin-only tables (`sop_drafts`, `sop_steps`). Members read only `sop_documents` (published metadata) and the **current** `sop_versions` row.
+- **Restricted SOPs:** hidden by RLS unless granted to the Members role, to the user, or the user is the SOP owner. Search, attachments, acknowledgments and notifications all reuse the same visibility function.
+- **Writes:** every SOP write goes through `SECURITY DEFINER` RPCs that re-check the caller's role against the SOP's own workspace. Clients have no direct insert, update or delete privileges on SOP tables, apart from category columns and attachment rows (owners and admins, under RLS).
+- **Integrity:** composite foreign keys ensure a SOP's category and owner, a step's attachment and an acknowledgment's version all belong to the same workspace or SOP.
+- **Content:** editor JSON is sanitized on save and again on render (allowlist, safe links only, no inline HTML, no external images).
+- **Attachments:** private bucket with a type allowlist (no HTML or SVG) and a 10 MB limit, enforced by the bucket, the database check constraint and the server.
+  - Paths must be `<workspace>/<sop>/<uuid>.<ext>` (validated by the server action and a DB check).
+  - Download links are signed URLs created under the user's own session, so storage RLS refuses anyone who can't read the SOP. They last 60 s for downloads and 1 h for inline images.
+  - A per-workspace storage quota comes from the plan.
+
 ## Uploads
 - The public `branding` bucket accepts only PNG, JPEG or WebP up to 2 MB. SVG is excluded because it can carry scripts.
 - Storage RLS: only the owner can write `workspaces/<id>/…`, and each user can write only `users/<their id>/…`.

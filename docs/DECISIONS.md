@@ -17,3 +17,10 @@
 | 13 | **Invite Member quick action enabled in Stage 2.** | The invitation RPCs and accept page already existed (Stage 1). The full Team page (member list, roles, deactivation) is still Stage 6. Invitation emails stay unsent until an email provider is configured; the dialog gives the owner a copyable link. |
 | 14 | **Per-widget `catchError` boundaries** (Next 16) instead of hand-written error boundary classes. | They integrate with the framework's redirect, notFound and retry behaviour. |
 | 15 | **Sidebar collapse state in a cookie**, not localStorage. | The server renders the correct width on the first paint (no layout shift). It's a per-viewer convenience with no security relevance. |
+| 16 | **Separate `sop_drafts` working copy plus immutable `sop_versions`.** | RLS is per row; unpublished edits must never be readable by members. Snapshots make history, compare and restore trivial and tamper-proof. |
+| 17 | **Steps stored relationally in the working copy and as jsonb in versions.** | Steps are edited as rows (ordering, attachment foreign keys); versions are frozen snapshots. |
+| 18 | **Tiptap pinned to 3.32.2** (not the 3-day-old 3.34.0). | Prefer releases that have had time to settle. |
+| 19 | **Custom React renderer for SOP rich text** instead of `generateHTML` + `dangerouslySetInnerHTML`. | It works with server rendering and is XSS-safe by construction; it re-sanitizes even content written directly through the API. |
+| 20 | **Restore = new version.** Restoring refuses to overwrite unpublished edits unless the user confirms. | History is never rewritten, and no change is lost silently. |
+| 21 | **Acknowledgments are keyed by (SOP, version, user).** | An acknowledgment of v2 never counts for v3. Publishing a new version notifies everyone who can read the SOP. |
+| 22 | **Attachments belong to the SOP, not to a version.** | Keeps storage simple. Removing a file also removes it from old versions (documented as a known limitation). |

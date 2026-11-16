@@ -61,7 +61,7 @@ tests/
   e2e/                    Playwright (runs against the local Supabase stack + Mailpit)
 ```
 
-## Data model (Stages 1–2)
+## Data model (Stages 1–3)
 
 | Table | Purpose |
 |---|---|
@@ -75,7 +75,7 @@ tests/
 | `activity_log` | Workspace activity feed. Written only by trusted functions/triggers |
 | `notifications` | Per-user inbox scoped to a workspace (Stage 2). Rows are created only by triggers/RPCs reacting to real events; recipients may only set `read_at` or delete their own |
 
-Tables planned for later stages: `sop_categories`, `sop_documents`, `sop_steps`, `sop_versions`, `sop_attachments`, `tasks`, `task_comments`, `task_activity`, `checklist_templates`, `checklist_items`, `checklist_instances`, `checklist_completions`, `handovers`, `handover_notes`. Each one gets a `workspace_id`, composite foreign keys to keep references inside one workspace, the `prevent_workspace_change` trigger and RLS built on the same helpers.
+Tables planned for later stages: `tasks`, `task_comments`, `task_activity`, `checklist_templates`, `checklist_items`, `checklist_instances`, `checklist_completions`, `handovers`, `handover_notes`. Each one gets a `workspace_id`, composite foreign keys to keep references inside one workspace, the `prevent_workspace_change` trigger and RLS built on the same helpers.
 
 ### RLS helpers (`private` schema, not exposed over the API)
 
@@ -107,6 +107,32 @@ Tables planned for later stages: `sop_categories`, `sop_documents`, `sop_steps`,
 - **Global search:** `public.search_workspace(workspace, query, limit)` is `SECURITY INVOKER`, so RLS decides what each caller can find. It escapes LIKE wildcards and requires at least 2 characters. Today it searches team members; later modules add `UNION` branches to it. Pages and workspace switching are matched on the client.
 - **Notifications:** created by triggers when a member joins (owners and admins are notified) or a role changes (the member is notified), and by `create_invitation` when the invitee already has an account. Accepting or revoking an invitation deletes that invitation's notification. The bell loads its list on demand; the layout fetches only the unread count.
 - **Activity feed:** triggers log workspace edits (name, timezone, logo, description), role changes, deactivation and reactivation, leaving or removal, and revoked invitations. Invitation activity no longer stores the invitee's email.
+
+## SOP Library (Stage 3)
+
+| Table | Purpose |
+|---|---|
+| `sop_categories` | Per-workspace categories. The 7 defaults are seeded by a trigger on workspace creation. Categories can be renamed, archived, or deleted once their SOPs have been moved (`delete_sop_category`) |
+| `sop_documents` | One row per SOP: category, owner, status, visibility, `requires_acknowledgment`, `current_version`, plus the **published** title, description and full-text index (`search`). Members read this |
+| `sop_drafts` | The editable **working copy**: title, description and rich-text `sections`, a `dirty` flag (differs from the published version) and a `revision` counter for optimistic concurrency. Owners and admins only |
+| `sop_steps` | Ordered steps of the working copy (title, instructions, notes, optional attachment) |
+| `sop_versions` | Immutable snapshots created on publish (content + steps jsonb, revision note, publisher, `restored_from_version`) |
+| `sop_permissions` | Grants for restricted SOPs: the Members role or specific members |
+| `sop_acknowledgments` | One row per user **per version** (FK to `sop_versions`) |
+| `sop_attachments` | Files in the private `sop-attachments` bucket at `<workspace>/<sop>/<uuid>.<ext>` |
+
+**Why a separate draft table:** RLS filters rows, not columns. Keeping unpublished edits in `sop_drafts`, which owners and admins read, means members can never see work-in-progress on a published SOP, whether in the UI, through the API or in search.
+
+**Visibility** comes from one function, `private.can_user_view_sop(sop, user)`. It is reused by RLS on documents, versions and attachments, by the storage policies, by `search_workspace` (which runs as the caller) and by the acknowledgment roster.
+- **Owners and admins:** every SOP, in every status.
+- **Members:** published SOPs that are workspace-wide, or restricted SOPs granted to the Members role, to them personally, or that they own.
+- **Archived SOPs:** hidden from members.
+
+**Lifecycle RPCs:** `create_sop`, `save_sop_draft` (also called by autosave; a stale `revision` raises `40001`), `publish_sop` (refuses a publish with no changes), `restore_sop_version` (copies an old snapshot into a **new** version and refuses to discard unpublished edits unless asked explicitly), `archive_sop`, `unarchive_sop`, `duplicate_sop`, `set_sop_access`, `acknowledge_sop` (always the current version), `get_sop_acknowledgments` (owners and admins only). Plan limits: `sops` (active SOPs) and `storage_mb` (attachment quota).
+
+**Rich text:** the editor is Tiptap (StarterKit, task lists, tables, images, links). Editor JSON goes through `sanitizeSections()` (an allowlist of nodes, marks and attributes; `http`, `https` and `mailto` links only; images only as `attachmentId` references) before every save. It is sanitized **again** when rendered by `RichText`, a React renderer that never uses `dangerouslySetInnerHTML`. Images resolve to short-lived signed URLs.
+
+**Editor reliability:** autosave runs 1.5 s after the last edit, ⌘S saves immediately, and failed saves retry every 10 s. Concurrent saves are queued. A conflict (someone else saved first) locks the editor with a clear message. A `beforeunload` prompt and an in-app link guard warn before you leave with unsaved changes.
 
 ## Recurring checklists (Stage 5 design)
 
