@@ -7,6 +7,8 @@ export type FormState = {
   fieldErrors?: Record<string, string[] | undefined>;
   /** Echo of submitted values so inputs keep their content after an error. */
   values?: Record<string, string>;
+  /** Extra success payload (e.g. a generated link). */
+  data?: Record<string, string>;
 };
 
 export const initialFormState: FormState = { status: "idle" };

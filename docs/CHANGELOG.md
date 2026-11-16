@@ -1,5 +1,15 @@
 # Changelog
 
+## Stage 2 — Application shell & dashboard
+
+- Collapsible sidebar with the workspace switcher, active indicators and "Soon" states driven by a new module registry. Mobile drawer and a mobile workspace bar.
+- Top bar: global search (⌘K) across team members, pages and workspaces; notification centre with unread badge, mark-read and mark-all-read; help menu (getting started, docs, support, about); account menu.
+- Three-column dashboard: welcome hero (greeting, workspace, date and live clock in the workspace timezone), four KPI cards, operations health ring, getting-started progress, team activity feed, upcoming tasks, operations calendar (month navigation, today indicator, event slots), recent SOPs, quick actions and a TinyOps AI placeholder. Metrics for modules that aren't built show honest empty states.
+- Invite Member quick action (owners and admins), which creates a copyable invitation link.
+- New `/app/notifications` page.
+- Database: `notifications` table, notification and activity triggers, the `search_workspace` RPC, and `create_invitation` v2 (no invitee emails in activity, in-app invite for existing users).
+- Tests: 37 new pgTAP assertions (97 total), 21 new unit tests (47 total), 11 new Playwright journeys (23 total).
+
 ## Stage 1 — Foundation
 
 - Next.js 16 + TypeScript + Tailwind v4 project with TinyOps design tokens, Plus Jakarta Sans and shadcn/ui primitives.

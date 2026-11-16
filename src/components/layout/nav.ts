@@ -10,6 +10,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { modules } from "@/lib/modules";
 
 export type NavItem = {
   href: string;
@@ -21,12 +22,12 @@ export type NavItem = {
 
 export const mainNav: NavItem[] = [
   { href: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard, available: true },
-  { href: "/app/tasks", label: "My Tasks", icon: SquareCheckBig, available: false },
-  { href: "/app/sops", label: "SOP Library", icon: BookOpenText, available: false },
-  { href: "/app/checklists", label: "Checklists", icon: ClipboardCheck, available: false },
-  { href: "/app/calendar", label: "Calendar", icon: CalendarDays, available: false },
-  { href: "/app/team", label: "Team", icon: Users, available: false },
-  { href: "/app/handovers", label: "Handovers", icon: ArrowLeftRight, available: false },
-  { href: "/app/reports", label: "Reports", icon: ChartColumn, available: false },
+  { href: modules.tasks.href, label: "My Tasks", icon: SquareCheckBig, available: modules.tasks.available },
+  { href: modules.sops.href, label: "SOP Library", icon: BookOpenText, available: modules.sops.available },
+  { href: modules.checklists.href, label: "Checklists", icon: ClipboardCheck, available: modules.checklists.available },
+  { href: modules.calendar.href, label: "Calendar", icon: CalendarDays, available: modules.calendar.available },
+  { href: modules.team.href, label: "Team", icon: Users, available: modules.team.available },
+  { href: modules.handovers.href, label: "Handovers", icon: ArrowLeftRight, available: modules.handovers.available },
+  { href: modules.reports.href, label: "Reports", icon: ChartColumn, available: modules.reports.available },
   { href: "/app/settings", label: "Settings", icon: Settings, available: true },
 ];
