@@ -192,3 +192,89 @@
     background: color-mix(in srgb, var(--primary) 18%, transparent);
   }
 }
+
+/* SOP rich text — shared by the reader and the editor */
+@layer components {
+  .sop-prose {
+    @apply text-[15px] leading-7 text-foreground/90;
+  }
+  .sop-prose > * + * {
+    @apply mt-3;
+  }
+  .sop-prose h3 {
+    @apply mt-5 text-lg font-bold text-foreground;
+  }
+  .sop-prose h4 {
+    @apply mt-4 text-base font-bold text-foreground;
+  }
+  .sop-prose ul:not([data-type="taskList"]) {
+    @apply list-disc pl-6;
+  }
+  .sop-prose ol {
+    @apply list-decimal pl-6;
+  }
+  .sop-prose li + li {
+    @apply mt-1;
+  }
+  .sop-prose li > p {
+    @apply m-0;
+  }
+  .sop-prose ul[data-type="taskList"] {
+    @apply grid gap-1.5 pl-0;
+  }
+  .sop-prose ul[data-type="taskList"] li {
+    @apply flex items-start gap-2.5;
+  }
+  .sop-prose ul[data-type="taskList"] li > label,
+  .sop-prose ul[data-type="taskList"] li > input {
+    @apply mt-1.5 shrink-0;
+  }
+  .sop-prose ul[data-type="taskList"] input[type="checkbox"] {
+    @apply size-4 accent-[var(--primary)];
+  }
+  .sop-prose ul[data-type="taskList"] li[data-checked="true"] > div {
+    @apply text-muted-foreground line-through;
+  }
+  .sop-prose blockquote {
+    @apply rounded-r-lg border-l-4 border-primary/50 bg-secondary/50 py-2 pl-4 pr-3 text-foreground/80;
+  }
+  .sop-prose a {
+    @apply font-medium text-primary underline underline-offset-2;
+  }
+  .sop-prose code {
+    @apply rounded bg-muted px-1.5 py-0.5 text-[0.9em];
+  }
+  .sop-prose hr {
+    @apply my-5 border-border;
+  }
+  .sop-prose img {
+    @apply max-h-[480px] max-w-full rounded-xl border border-border;
+  }
+  .sop-prose .sop-table,
+  .sop-prose .tableWrapper {
+    @apply overflow-x-auto;
+  }
+  .sop-prose table {
+    @apply w-full border-collapse text-sm;
+  }
+  .sop-prose th,
+  .sop-prose td {
+    @apply min-w-[80px] border border-border px-3 py-2 text-left align-top;
+  }
+  .sop-prose th {
+    @apply bg-muted font-semibold;
+  }
+  .sop-prose .selectedCell {
+    @apply bg-secondary;
+  }
+  .sop-missing-image {
+    @apply inline-block rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground;
+  }
+  .sop-editor .ProseMirror {
+    @apply min-h-[120px] outline-none;
+  }
+  .sop-editor .ProseMirror p.is-editor-empty:first-child::before {
+    @apply pointer-events-none float-left h-0 text-muted-foreground/70;
+    content: attr(data-placeholder);
+  }
+}
