@@ -37,18 +37,20 @@ test("owner sees the full dashboard with honest empty states", async ({ page }) 
   await expect(page.getByRole("heading", { name: /^TinyOps AI/ })).toBeVisible();
   await expect(page.getByText("Your health score appears once your team starts completing tasks and checklists.")).toBeVisible();
   await expect(page.getByText("Task tracking is coming soon")).toBeVisible();
-  await expect(page.getByText("Your SOP Library is on its way")).toBeVisible();
-  await expect(page.getByRole("button", { name: /Create SOP/ })).toBeDisabled();
+  // SOP Library is live (Stage 3): owners get a working Create SOP action.
+  await expect(page.getByText("No SOPs yet")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Recent SOPs" }).getByRole("link", { name: "Create SOP" })).toHaveAttribute("href", "/app/sops/new");
   await expect(page.getByTestId("activity-item").filter({ hasText: `created the workspace ${WORKSPACE}` })).toBeVisible();
-  await expect(page.getByTestId("quick-action-disabled")).toHaveCount(5);
+  await expect(page.getByTestId("quick-action-disabled")).toHaveCount(4);
 });
 
 test("navigation: live items link, unbuilt modules are not links, sidebar collapse persists", async ({ page }) => {
   await login(page, owner);
   const nav = page.getByRole("navigation", { name: "Main" });
   await expect(nav.getByRole("link", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
-  await expect(nav.getByTestId("nav-soon")).toHaveCount(7);
-  for (const path of ["/app/tasks", "/app/sops", "/app/checklists", "/app/calendar", "/app/team", "/app/handovers", "/app/reports"]) {
+  await expect(nav.getByTestId("nav-soon")).toHaveCount(6);
+  await expect(nav.getByRole("link", { name: "SOP Library" })).toHaveAttribute("href", "/app/sops");
+  for (const path of ["/app/tasks", "/app/checklists", "/app/calendar", "/app/team", "/app/handovers", "/app/reports"]) {
     await expect(page.locator(`a[href="${path}"]`)).toHaveCount(0);
   }
 
@@ -137,7 +139,7 @@ test("search is workspace-aware and respects permissions", async ({ page, browse
   await page.keyboard.press("ControlOrMeta+k");
   await page.getByLabel("Search query").fill("Tomi");
   await expect(page.getByTestId("search-member").filter({ hasText: teammate.name })).toBeVisible();
-  await expect(page.getByText(/Tasks, SOPs, Checklists, Handovers become searchable/)).toBeVisible();
+  await expect(page.getByText(/Tasks, Checklists, Handovers become searchable/)).toBeVisible();
 
   // Page commands navigate.
   await page.getByLabel("Search query").fill("profile");
@@ -151,7 +153,7 @@ test("search is workspace-aware and respects permissions", async ({ page, browse
   await createWorkspace(other, "Omar Electrics");
   await other.getByRole("button", { name: "Search" }).click();
   await other.getByLabel("Search query").fill("Tomi");
-  await expect(other.getByText(/No team members match/)).toBeVisible();
+  await expect(other.getByText(/Nothing in Omar Electrics matches/)).toBeVisible();
   await expect(other.getByTestId("search-member")).toHaveCount(0);
   // ...and their dashboard shows none of this workspace's data.
   await other.keyboard.press("Escape");

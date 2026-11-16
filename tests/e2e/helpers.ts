@@ -55,3 +55,22 @@ export async function supabaseAs(email: string, password: string) {
   if (error) throw error;
   return client;
 }
+
+/** Test-only: creates a confirmed user via the local admin API (skips email verification). */
+export async function createConfirmedUser(email: string, password: string, fullName: string) {
+  const secret = process.env.SUPABASE_SECRET_KEY;
+  if (!secret) throw new Error("SUPABASE_SECRET_KEY is required for e2e user setup");
+  const admin = createClient(SUPABASE_URL, secret, { auth: { persistSession: false } });
+  const { error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name: fullName } });
+  if (error) throw error;
+}
+
+/** Test-only: owner invites `email` to their workspace and the user accepts through the RPCs. */
+export async function joinWorkspace(ownerEmail: string, ownerPassword: string, workspaceId: string, email: string, password: string, role: "member" | "admin" = "member") {
+  const owner = await supabaseAs(ownerEmail, ownerPassword);
+  const { data, error } = await owner.rpc("create_invitation", { p_workspace_id: workspaceId, p_email: email, p_role: role });
+  if (error) throw error;
+  const user = await supabaseAs(email, password);
+  const res = await user.rpc("accept_invitation", { p_token: data![0].token });
+  if (res.error) throw res.error;
+}
