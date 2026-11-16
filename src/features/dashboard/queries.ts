@@ -7,6 +7,7 @@ import type { UpcomingTask } from "./components/upcoming-tasks";
 import type { SopSummary } from "./components/recent-sops";
 import type { CalendarEvent } from "./components/operations-calendar";
 import { modules } from "@/lib/modules";
+import { getSopStats, recentSops, type SopStats } from "@/features/sops/queries";
 
 /**
  * Dashboard read model. Every query is RLS-scoped through the user's session
@@ -95,9 +96,22 @@ export const getUpcomingTasks = cache(async (_workspaceId: string): Promise<Upco
   return modules.tasks.available ? [] : null;
 });
 
-export const getRecentSops = cache(async (_workspaceId: string): Promise<SopSummary[] | null> => {
-  void _workspaceId;
-  return modules.sops.available ? [] : null;
+export const getRecentSops = cache(async (workspaceId: string): Promise<SopSummary[] | null> => {
+  if (!modules.sops.available) return null;
+  // RLS-scoped: members only get published SOPs they are allowed to read.
+  const sops = await recentSops(workspaceId, 5);
+  return sops.map((s) => ({
+    id: s.id,
+    title: s.title,
+    category: s.category?.name ?? null,
+    ownerName: s.owner?.name ?? null,
+    updatedAt: s.updatedAt,
+    status: s.status,
+  }));
+});
+
+export const getSopCounts = cache(async (workspaceId: string): Promise<SopStats | null> => {
+  return modules.sops.available ? getSopStats(workspaceId) : null;
 });
 
 export const getCalendarEvents = cache(async (_workspaceId: string): Promise<CalendarEvent[]> => {

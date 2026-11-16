@@ -14,7 +14,7 @@ export type ModuleInfo = {
 
 export const modules: Record<ModuleKey, ModuleInfo> = {
   tasks: { key: "tasks", label: "Tasks", href: "/app/tasks", available: false },
-  sops: { key: "sops", label: "SOP Library", href: "/app/sops", available: false },
+  sops: { key: "sops", label: "SOP Library", href: "/app/sops", available: true },
   checklists: { key: "checklists", label: "Checklists", href: "/app/checklists", available: false },
   calendar: { key: "calendar", label: "Calendar", href: "/app/calendar", available: false },
   team: { key: "team", label: "Team", href: "/app/team", available: false },

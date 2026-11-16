@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRightLeft,
   Bell,
+  BookOpenText,
   Building2,
   CornerDownLeft,
   LayoutDashboard,
@@ -114,8 +115,15 @@ export function GlobalSearch({ workspaceName, workspaces, currentId }: { workspa
     return [...base, ...switches].filter((c) => !q || c.label.toLowerCase().includes(q));
   })();
 
+  // SOP results are navigable (they open the SOP); member results are informational.
+  const sopCommands: Command[] = results
+    .filter((r) => r.kind === "sop" && r.url)
+    .map((r) => ({ id: `sop-${r.id}`, label: r.title, hint: r.subtitle, icon: BookOpenText, run: () => go(r.url!) }));
+  const memberResults = results.filter((r) => r.kind === "member");
+  const navigable = [...sopCommands, ...commands];
+
   // Only navigable entries take part in keyboard selection.
-  const selectable = commands.length;
+  const selectable = navigable.length;
 
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown") {
@@ -124,9 +132,9 @@ export function GlobalSearch({ workspaceName, workspaces, currentId }: { workspa
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActive((i) => (selectable ? (i - 1 + selectable) % selectable : 0));
-    } else if (e.key === "Enter" && commands[active]) {
+    } else if (e.key === "Enter" && navigable[active]) {
       e.preventDefault();
-      commands[active].run();
+      navigable[active].run();
     }
   }
 
@@ -143,7 +151,7 @@ export function GlobalSearch({ workspaceName, workspaces, currentId }: { workspa
         aria-keyshortcuts="Control+K Meta+K"
       >
         <Search className="size-[18px] shrink-0 text-foreground/70" />
-        <span className="hidden truncate sm:inline">Search people, pages and workspaces…</span>
+        <span className="hidden truncate sm:inline">Search SOPs, people and pages…</span>
         <span className="truncate sm:hidden">Search…</span>
         <kbd className="ml-auto hidden shrink-0 rounded-md border border-border bg-card px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground md:inline">
           ⌘K
@@ -161,12 +169,12 @@ export function GlobalSearch({ workspaceName, workspaces, currentId }: { workspa
               value={query}
               onChange={(e) => onQueryChange(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder={`Search ${workspaceName}…`}
+              placeholder={`Search SOPs, people and pages in ${workspaceName}…`}
               maxLength={100}
               role="combobox"
               aria-expanded="true"
               aria-controls="global-search-list"
-              aria-activedescendant={commands[active] ? `cmd-${commands[active].id}` : undefined}
+              aria-activedescendant={navigable[active] ? `cmd-${navigable[active].id}` : undefined}
               aria-label="Search query"
               className="h-14 w-full bg-transparent text-[15px] outline-none placeholder:text-muted-foreground"
             />
@@ -174,28 +182,34 @@ export function GlobalSearch({ workspaceName, workspaces, currentId }: { workspa
           </div>
 
           <div id="global-search-list" role="listbox" aria-label="Search results" className="max-h-[min(60vh,460px)] overflow-y-auto p-2">
-            {showResults && (
+            {showResults && error && <p className="px-3 py-2 text-sm text-destructive">{error}</p>}
+            {showResults && !error && loading && results.length === 0 && <p className="px-3 py-2 text-sm text-muted-foreground">Searching…</p>}
+            {showResults && !error && !loading && results.length === 0 && (
+              <p className="px-3 py-2 text-sm text-muted-foreground">Nothing in {workspaceName} matches “{query.trim()}”.</p>
+            )}
+
+            {sopCommands.length > 0 && (
+              <Section title="SOPs">
+                {sopCommands.map((c, i) => (
+                  <OptionRow key={c.id} command={c} selected={i === active} onHover={() => setActive(i)} testId="search-sop" />
+                ))}
+              </Section>
+            )}
+
+            {memberResults.length > 0 && (
               <Section title={`Team members in ${workspaceName}`}>
-                {error ? (
-                  <p className="px-3 py-2 text-sm text-destructive">{error}</p>
-                ) : loading && results.length === 0 ? (
-                  <p className="px-3 py-2 text-sm text-muted-foreground">Searching…</p>
-                ) : results.length === 0 ? (
-                  <p className="px-3 py-2 text-sm text-muted-foreground">No team members match “{query.trim()}”.</p>
-                ) : (
-                  results.map((r) => (
-                    <div key={`${r.kind}-${r.id}`} className="flex items-center gap-3 rounded-xl px-3 py-2" data-testid="search-member">
-                      <Avatar className="size-8">
-                        {r.imageUrl && <AvatarImage src={r.imageUrl} alt="" />}
-                        <AvatarFallback className="text-[11px]">{initials(r.title)}</AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{r.title}</p>
-                        <p className="truncate text-xs text-muted-foreground">{r.subtitle}</p>
-                      </div>
+                {memberResults.map((r) => (
+                  <div key={`${r.kind}-${r.id}`} className="flex items-center gap-3 rounded-xl px-3 py-2" data-testid="search-member">
+                    <Avatar className="size-8">
+                      {r.imageUrl && <AvatarImage src={r.imageUrl} alt="" />}
+                      <AvatarFallback className="text-[11px]">{initials(r.title)}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{r.title}</p>
+                      <p className="truncate text-xs text-muted-foreground">{r.subtitle}</p>
                     </div>
-                  ))
-                )}
+                  </div>
+                ))}
               </Section>
             )}
 
@@ -205,24 +219,12 @@ export function GlobalSearch({ workspaceName, workspaces, currentId }: { workspa
                 <p className="px-3 py-2 text-sm text-muted-foreground">No pages match.</p>
               ) : (
                 commands.map((c, i) => (
-                  <button
+                  <OptionRow
                     key={c.id}
-                    id={`cmd-${c.id}`}
-                    type="button"
-                    role="option"
-                    aria-selected={i === active}
-                    onMouseEnter={() => setActive(i)}
-                    onClick={c.run}
-                    className={cn(
-                      "flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm",
-                      i === active ? "bg-secondary text-secondary-foreground" : "hover:bg-muted",
-                    )}
-                  >
-                    <c.icon className="size-4 shrink-0 opacity-70" />
-                    <span className="flex-1 truncate font-medium">{c.label}</span>
-                    {c.hint && <span className="text-xs text-muted-foreground">{c.hint}</span>}
-                    {i === active && <CornerDownLeft className="size-3.5 opacity-60" />}
-                  </button>
+                    command={c}
+                    selected={i + sopCommands.length === active}
+                    onHover={() => setActive(i + sopCommands.length)}
+                  />
                 ))
               )}
             </Section>
@@ -231,12 +233,35 @@ export function GlobalSearch({ workspaceName, workspaces, currentId }: { workspa
 
           {comingSoon.length > 0 && (
             <p className="border-t border-border bg-muted/50 px-4 py-2.5 text-xs text-muted-foreground">
-              Search covers team members and pages today. {comingSoon.join(", ")} become searchable as each module launches.
+              Search covers SOPs, team members and pages today. {comingSoon.join(", ")} become searchable as each module launches.
             </p>
           )}
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function OptionRow({ command: c, selected, onHover, testId }: { command: Command; selected: boolean; onHover: () => void; testId?: string }) {
+  return (
+    <button
+      id={`cmd-${c.id}`}
+      type="button"
+      role="option"
+      aria-selected={selected}
+      onMouseEnter={onHover}
+      onClick={c.run}
+      data-testid={testId}
+      className={cn(
+        "flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm",
+        selected ? "bg-secondary text-secondary-foreground" : "hover:bg-muted",
+      )}
+    >
+      <c.icon className="size-4 shrink-0 opacity-70" />
+      <span className="flex-1 truncate font-medium">{c.label}</span>
+      {c.hint && <span className="max-w-[45%] truncate text-xs text-muted-foreground">{c.hint}</span>}
+      {selected && <CornerDownLeft className="size-3.5 shrink-0 opacity-60" />}
+    </button>
   );
 }
 

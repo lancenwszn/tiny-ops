@@ -44,6 +44,28 @@ export function describeActivity(entry: Pick<ActivityEntry, "action" | "metadata
       return { text: "left the workspace", tone: "amber" };
     case "member.removed":
       return { text: `removed ${str(m.name, "a teammate")} from the workspace`, tone: "coral" };
+    case "sop.created":
+      return { text: `started a new SOP “${str(m.title)}”`, tone: "violet" };
+    case "sop.published":
+      return { text: `published “${str(m.title)}” (v${Number(m.version) || 1})`, tone: "green" };
+    case "sop.version_restored":
+      return { text: `restored “${str(m.title)}” to version ${Number(m.restored_from) || "?"}`, tone: "sky" };
+    case "sop.archived":
+      return { text: `archived “${str(m.title)}”`, tone: "muted" };
+    case "sop.unarchived":
+      return { text: `restored “${str(m.title)}” from the archive`, tone: "green" };
+    case "sop.duplicated":
+      return { text: `duplicated “${str(m.from)}”`, tone: "violet" };
+    case "sop.access_changed":
+      return { text: `made “${str(m.title)}” ${m.visibility === "restricted" ? "restricted" : "visible to everyone"}`, tone: "sky" };
+    case "sop_category.created":
+      return { text: `added the SOP category ${str(m.name)}`, tone: "violet" };
+    case "sop_category.renamed":
+      return { text: `renamed the SOP category ${str(m.from)} to ${str(m.name)}`, tone: "sky" };
+    case "sop_category.archived":
+      return { text: `archived the SOP category ${str(m.name)}`, tone: "muted" };
+    case "sop_category.deleted":
+      return { text: `deleted the SOP category ${str(m.name)}`, tone: "coral" };
     case "invitation.revoked":
       return { text: "revoked a pending invitation", tone: "amber" };
     default:

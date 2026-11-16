@@ -49,6 +49,15 @@ export function QuickActions({ role }: { role: string }) {
             );
           }
 
+          // Creating SOPs is for owners and admins.
+          if (a.key === "sop" && modules.sops.available && !canInvite) {
+            return (
+              <Disabled key={a.key} reason="Only owners and admins can create SOPs">
+                {inner}
+              </Disabled>
+            );
+          }
+
           if (modules[a.module].available) {
             return (
               <Link key={a.key} href={a.href} className={cn(tile, "bg-card hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card")}>
