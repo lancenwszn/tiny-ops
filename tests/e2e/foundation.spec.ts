@@ -31,8 +31,8 @@ test("owner signs up, verifies email and creates a workspace", async ({ page }) 
 
   await createWorkspace(page, "Brightside Coffee", "Africa/Lagos");
   await expect(page.getByRole("heading", { name: /Good (morning|afternoon|evening), Ayesha/ })).toBeVisible();
-  await expect(page.getByText("Growth (trial)")).toBeVisible();
-  await expect(page.getByText("Africa/Lagos")).toBeVisible();
+  await expect(page.getByText("Growth trial")).toBeVisible();
+  await expect(page.getByText(/Africa\/Lagos/)).toBeVisible();
   await expect(page.getByText(/days left in your free trial/).first()).toBeVisible();
 });
 
@@ -122,7 +122,7 @@ test("teammate joins through an invitation and has member permissions", async ({
   await expect(page).toHaveURL(new RegExp(invitePath));
   await page.getByRole("button", { name: "Accept invitation" }).click();
   await expect(page).toHaveURL(/\/app\/dashboard/);
-  await expect(page.getByText(/Signed in as\s*member/)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Welcome" }).getByText("member", { exact: true })).toBeVisible();
 
   await page.goto("/app/settings");
   await expect(page.getByText("Only the workspace owner can change these settings.")).toBeVisible();
