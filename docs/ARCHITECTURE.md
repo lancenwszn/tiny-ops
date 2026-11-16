@@ -61,7 +61,7 @@ tests/
   e2e/                    Playwright (runs against the local Supabase stack + Mailpit)
 ```
 
-## Data model (Stage 1)
+## Data model (Stages 1–2)
 
 | Table | Purpose |
 |---|---|
@@ -73,8 +73,9 @@ tests/
 | `subscriptions` | One per workspace. Clients can read it but never write it |
 | `stripe_events` | Webhook idempotency (service role only) |
 | `activity_log` | Workspace activity feed. Written only by trusted functions/triggers |
+| `notifications` | Per-user inbox scoped to a workspace (Stage 2). Rows are created only by triggers/RPCs reacting to real events; recipients may only set `read_at` or delete their own |
 
-Tables planned for later stages: `sop_categories`, `sop_documents`, `sop_steps`, `sop_versions`, `sop_attachments`, `tasks`, `task_comments`, `task_activity`, `checklist_templates`, `checklist_items`, `checklist_instances`, `checklist_completions`, `handovers`, `handover_notes`, `notifications`. Each one gets a `workspace_id`, composite foreign keys to keep references inside one workspace, the `prevent_workspace_change` trigger and RLS built on the same helpers.
+Tables planned for later stages: `sop_categories`, `sop_documents`, `sop_steps`, `sop_versions`, `sop_attachments`, `tasks`, `task_comments`, `task_activity`, `checklist_templates`, `checklist_items`, `checklist_instances`, `checklist_completions`, `handovers`, `handover_notes`. Each one gets a `workspace_id`, composite foreign keys to keep references inside one workspace, the `prevent_workspace_change` trigger and RLS built on the same helpers.
 
 ### RLS helpers (`private` schema, not exposed over the API)
 
@@ -95,6 +96,17 @@ Tables planned for later stages: `sop_categories`, `sop_documents`, `sop_steps`,
 - **Owner:** everything, including workspace settings and billing. Cannot demote themselves or leave (ownership transfer comes later).
 - **Admin:** runs operations. Can invite and deactivate **members**, but cannot promote anyone or touch other admins or the owner.
 - **Member:** reads their workspace and can leave it. Cannot change any membership, including their own.
+
+## Application shell & dashboard (Stage 2)
+
+- **Module registry:** `src/lib/modules.ts` records which modules are live. The sidebar, quick actions, global search sources, calendar and dashboard widgets all read it. A module that isn't live is shown as a disabled "Soon" item, never as a link.
+- **Shell:** a collapsible sidebar (`app-sidebar.tsx`; the preference is stored in the `tinyops_sidebar` cookie so the server renders the right width with no layout shift). The sidebar holds the workspace switcher; below `lg` the switcher sits under the top bar and in the mobile drawer. The top bar has global search, notifications, help and the account menu.
+- **Dashboard read model** (`src/features/dashboard/queries.ts`): RLS-scoped queries wrapped in React `cache`, so widgets that share data make one request. `getOperationsInputs`, `getUpcomingTasks`, `getRecentSops` and `getCalendarEvents` are the extension points for Stages 3–5. They return `undefined`/`null` until a module is live, and the UI shows that as an honest empty state rather than zeros.
+- **Metrics** (`metrics.ts`): KPIs and the operations-health score are computed by pure functions with unit tests. A `Metric` is either `ready` (a real number) or `unavailable` (with a caption).
+- **Streaming and errors:** each data widget renders inside `<Suspense>` with a skeleton, and inside a `catchError` boundary (`widget-boundary.tsx`), so one failing widget never breaks the page.
+- **Global search:** `public.search_workspace(workspace, query, limit)` is `SECURITY INVOKER`, so RLS decides what each caller can find. It escapes LIKE wildcards and requires at least 2 characters. Today it searches team members; later modules add `UNION` branches to it. Pages and workspace switching are matched on the client.
+- **Notifications:** created by triggers when a member joins (owners and admins are notified) or a role changes (the member is notified), and by `create_invitation` when the invitee already has an account. Accepting or revoking an invitation deletes that invitation's notification. The bell loads its list on demand; the layout fetches only the unread count.
+- **Activity feed:** triggers log workspace edits (name, timezone, logo, description), role changes, deactivation and reactivation, leaving or removal, and revoked invitations. Invitation activity no longer stores the invitee's email.
 
 ## Recurring checklists (Stage 5 design)
 

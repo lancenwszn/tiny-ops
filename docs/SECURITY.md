@@ -24,6 +24,14 @@
 - Acceptance requires a verified email that matches the invited address. Plan member limits apply.
 - Admins can invite only members. Nobody can be invited as owner.
 
+## Notifications & search (Stage 2)
+- Clients cannot insert notifications; only `private.notify()`, called from triggers and RPCs, can create them. Recipients can update only `read_at`, and only on their own rows.
+- Workspace notifications are visible only while the recipient is an **active** member. Invitation notifications are the exception, because the invitee isn't a member yet.
+- Notification URLs must be relative paths. A check constraint rejects `//host` and absolute URLs.
+- An invitation notification contains the raw invite link. Only the invited account can read it, and it is deleted when the invitation is accepted or revoked.
+- `search_workspace` runs with the caller's privileges (RLS applies). The workspace id comes from the server-validated active membership, never from the client. Tests confirm that searching a foreign workspace returns nothing.
+- The activity feed, which every member can read, no longer contains invitee email addresses (invitations themselves are visible to admins only).
+
 ## Uploads
 - The public `branding` bucket accepts only PNG, JPEG or WebP up to 2 MB. SVG is excluded because it can carry scripts.
 - Storage RLS: only the owner can write `workspaces/<id>/…`, and each user can write only `users/<their id>/…`.

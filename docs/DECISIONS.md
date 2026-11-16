@@ -12,3 +12,8 @@
 | 8 | **Native `<select>` for timezones.** | Around 400 options; native controls are faster and fully accessible. |
 | 9 | **Forms use Server Actions + `useActionState` + zod** (no react-hook-form). | Progressive enhancement, server-side validation as the source of truth, fewer dependencies. Field errors come back from the server. |
 | 10 | **Modules not yet built appear in the sidebar as disabled "Soon" items.** | Never ship dead links or fake functionality. |
+| 11 | **Module registry (`src/lib/modules.ts`).** | One switch per module lights it up across navigation, quick actions, search and the dashboard. No hard-coded "coming soon" states scattered through the code. |
+| 12 | **The notifications table shipped in Stage 2** (planned for Stage 7). | The notification centre had to show real data. Membership and invitation events already exist, so triggers can produce genuine notifications now. |
+| 13 | **Invite Member quick action enabled in Stage 2.** | The invitation RPCs and accept page already existed (Stage 1). The full Team page (member list, roles, deactivation) is still Stage 6. Invitation emails stay unsent until an email provider is configured; the dialog gives the owner a copyable link. |
+| 14 | **Per-widget `catchError` boundaries** (Next 16) instead of hand-written error boundary classes. | They integrate with the framework's redirect, notFound and retry behaviour. |
+| 15 | **Sidebar collapse state in a cookie**, not localStorage. | The server renders the correct width on the first paint (no layout shift). It's a per-viewer convenience with no security relevance. |
