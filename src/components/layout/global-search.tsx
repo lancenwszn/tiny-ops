@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { searchWorkspaceAction, type SearchResult } from "@/features/search/actions";
 import { MIN_QUERY, searchSources } from "@/features/search/sources";
 import { switchWorkspaceAction } from "@/features/workspaces/actions";
+import { confirmNavigation } from "@/lib/unsaved-changes";
 import type { WorkspaceItem } from "./workspace-switcher";
 import { cn, initials } from "@/lib/utils";
 
@@ -86,6 +87,7 @@ export function GlobalSearch({ workspaceName, workspaces, currentId }: { workspa
   }
 
   function go(href: string) {
+    if (!confirmNavigation()) return;
     onOpenChange(false);
     router.push(href);
   }
@@ -107,6 +109,7 @@ export function GlobalSearch({ workspaceName, workspaces, currentId }: { workspa
         hint: "Workspace",
         icon: ArrowRightLeft,
         run: () => {
+          if (!confirmNavigation()) return;
           onOpenChange(false);
           void switchWorkspaceAction(w.id);
         },

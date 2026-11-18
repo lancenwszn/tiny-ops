@@ -31,9 +31,9 @@ export default async function EditSopPage({ params }: PageProps<"/app/sops/[id]/
       initial={{
         title: data.draft.title,
         description: data.draft.description,
-        categoryId: data.doc.category?.id ?? null,
-        ownerId: data.doc.owner?.id ?? null,
-        requiresAcknowledgment: data.doc.requiresAcknowledgment,
+        categoryId: data.draft.categoryId,
+        ownerId: data.draft.ownerId,
+        requiresAcknowledgment: data.draft.requiresAcknowledgment,
         sections: data.draft.sections,
         steps: data.steps,
         revision: data.draft.revision,

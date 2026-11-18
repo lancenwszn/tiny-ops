@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
@@ -76,6 +76,7 @@ export function RichTextEditor({
   images,
   imageUrls,
   placeholder,
+  editable = true,
 }: {
   label: string;
   hint?: string;
@@ -84,11 +85,14 @@ export function RichTextEditor({
   images: ImageOption[];
   imageUrls: Record<string, string>;
   placeholder?: string;
+  /** False when the SOP is archived or in an edit conflict. */
+  editable?: boolean;
 }) {
   const [linkOpen, setLinkOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
   const editor = useEditor({
     immediatelyRender: false,
+    editable,
     extensions: [
       StarterKit.configure({
         heading: { levels: [2, 3] },
@@ -111,13 +115,18 @@ export function RichTextEditor({
     onUpdate: ({ editor }) => onChange(editor.getJSON() as RichDoc),
   });
 
+  // Keep editability in sync (fieldset "disabled" does not affect contenteditable).
+  useEffect(() => {
+    if (editor && editor.isEditable !== editable) editor.setEditable(editable, false);
+  }, [editor, editable]);
+
   return (
     <section className="rounded-2xl border border-border bg-card shadow-card" aria-label={label}>
       <div className="px-4 pb-1 pt-4 sm:px-5">
         <h3 className="text-[15px] font-bold">{label}</h3>
         {hint && <p className="text-[13px] text-muted-foreground">{hint}</p>}
       </div>
-      {editor && <Toolbar editor={editor} onLink={() => setLinkOpen(true)} onImage={() => setImageOpen(true)} hasImages={images.length > 0} />}
+      {editor && editable && <Toolbar editor={editor} onLink={() => setLinkOpen(true)} onImage={() => setImageOpen(true)} hasImages={images.length > 0} />}
       <div className="sop-editor px-4 pb-4 pt-2 sm:px-5">
         <EditorContent editor={editor} />
       </div>

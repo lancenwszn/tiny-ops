@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { switchWorkspaceAction } from "@/features/workspaces/actions";
+import { confirmNavigation } from "@/lib/unsaved-changes";
 import { WorkspaceAvatar } from "./workspace-avatar";
 import { cn } from "@/lib/utils";
 
@@ -33,7 +34,7 @@ export function WorkspaceSwitcher({
   const [pending, startTransition] = useTransition();
 
   function select(id: string) {
-    if (id === current.id) return;
+    if (id === current.id || !confirmNavigation()) return;
     startTransition(async () => {
       const result = await switchWorkspaceAction(id);
       if (result && !result.ok) toast.error(result.error);
