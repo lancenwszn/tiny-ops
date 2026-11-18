@@ -56,11 +56,19 @@ export const getRecentActivity = cache(async (workspaceId: string, limit = 6): P
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("activity_log")
-    .select("id, action, metadata, created_at, actor:profiles(full_name, email, avatar_path)")
+    .select("id, action, metadata, created_at, entity_type, entity_id, actor:profiles(full_name, email, avatar_path)")
     .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) throw new Error("Could not load activity");
+
+  // Titles come from the live SOP rows the viewer may read (RLS), never from the log.
+  const sopIds = [...new Set((data ?? []).filter((r) => r.entity_type === "sop" && r.entity_id).map((r) => r.entity_id as string))];
+  const titles = new Map<string, string>();
+  if (sopIds.length) {
+    const { data: sops } = await supabase.from("sop_documents").select("id, title").in("id", sopIds);
+    for (const s of sops ?? []) titles.set(s.id, s.title);
+  }
 
   return (data ?? []).map((row) => {
     const actor = row.actor as { full_name: string; email: string; avatar_path: string | null } | null;
@@ -71,6 +79,7 @@ export const getRecentActivity = cache(async (workspaceId: string, limit = 6): P
       createdAt: row.created_at,
       actorName: actor ? actor.full_name || actor.email.split("@")[0] : null,
       actorAvatarPath: actor?.avatar_path ?? null,
+      entityTitle: row.entity_type === "sop" && row.entity_id ? (titles.get(row.entity_id) ?? null) : null,
     };
   });
 });
