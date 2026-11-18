@@ -172,7 +172,7 @@ describe("SOP schemas", () => {
   });
 
   it("limits steps and requires a title when saving", () => {
-    const base = { sopId: ID, revision: 0, title: "T", description: "", categoryId: null, ownerId: null, requiresAcknowledgment: false, sections: {}, steps: [] };
+    const base = { sopId: ID, revision: 0, title: "T", description: "", categoryId: null, ownerId: null, requiresAcknowledgment: false, sections: {}, steps: [], saveId: "aaaaaaaa-0000-4000-8000-000000000001", unconfirmedSaveIds: [] };
     expect(saveDraftSchema.safeParse(base).success).toBe(true);
     expect(saveDraftSchema.safeParse({ ...base, title: "  " }).success).toBe(false);
     const step = { title: "s", instructions: "", notes: "", attachment_id: null };

@@ -9,6 +9,7 @@ const member = { name: "Kemi Lawal", email: uniqueEmail("s3-member"), password: 
 const outsider = { name: "Victor Stone", email: uniqueEmail("s3-out"), password: "Outsider123" };
 let workspaceId = "";
 let sopUrl = "";
+let pdfAttachmentId = "";
 
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
 const PDF = Buffer.from("%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF");
@@ -158,7 +159,9 @@ test("drafts are invisible to members until published", async ({ page, browser }
   const steps = page.getByTestId("step");
   await expect(steps.first()).toContainText("Preheat ovens to 230°C");
   await expect(steps.first()).toContainText("Both deck ovens");
-  await expect(steps.first().locator("img")).toHaveAttribute("src", /\/storage\/v1\/object\/sign\/sop-attachments\//);
+  // Images go through the app gateway (access re-checked per request), never long-lived signed links.
+  await expect(steps.first().locator("img")).toHaveAttribute("src", /^\/api\/sops\/attachments\/[0-9a-f-]{36}$/);
+  await expect(page.locator('img[src*="/storage/v1/object/sign/"]')).toHaveCount(0);
 });
 
 test("members read, download attachments and acknowledge; owners see acknowledgment status", async ({ page, browser }) => {
@@ -171,13 +174,18 @@ test("members read, download attachments and acknowledge; owners see acknowledgm
   await expect(m.getByRole("heading", { name: "Morning bake schedule", level: 1 })).toBeVisible();
   await expect(m.getByRole("link", { name: "Edit" })).toHaveCount(0);
 
-  // Attachments are served through short-lived signed links.
+  // Attachments are served through the gateway, which redirects to a 30-second signed URL.
   const download = m.waitForEvent("download");
   await m.getByRole("button", { name: "Download oven-guide.pdf" }).click();
   const file = await download;
-  expect(file.url()).toMatch(/\/storage\/v1\/object\/sign\/sop-attachments\/.+token=/);
   expect(file.suggestedFilename()).toBe("oven-guide.pdf");
-  expect((await m.request.get(file.url())).status()).toBe(200);
+  const ownerClient = await supabaseAs(owner.email, owner.password);
+  const { data: pdfRow } = await ownerClient.from("sop_attachments").select("id").eq("file_name", "oven-guide.pdf").single();
+  pdfAttachmentId = pdfRow!.id;
+  const viaGateway = await m.request.get(`/api/sops/attachments/${pdfAttachmentId}?download=1`, { maxRedirects: 0 });
+  expect(viaGateway.status()).toBe(302);
+  expect(viaGateway.headers()["location"]).toMatch(/\/storage\/v1\/object\/sign\/sop-attachments\/.+token=/);
+  expect(viaGateway.headers()["cache-control"]).toContain("no-store");
 
   const card = m.getByTestId("ack-card").filter({ visible: true });
   await expect(card).toHaveAttribute("data-state", "pending");
@@ -243,6 +251,12 @@ test("version history: compare and restore as a new version", async ({ page }) =
 });
 
 test("restricted SOPs are hidden from members without access", async ({ page, browser }) => {
+  const ctx = await browser.newContext();
+  const m = await ctx.newPage();
+  await login(m, member);
+  const fileUrl = `/api/sops/attachments/${pdfAttachmentId}`;
+  expect((await m.request.get(fileUrl, { maxRedirects: 0 })).status()).toBe(302);
+
   await login(page, owner);
   await page.goto(`${sopUrl}/edit`);
   const access = page.getByRole("region", { name: "Who can see this SOP" });
@@ -250,9 +264,8 @@ test("restricted SOPs are hidden from members without access", async ({ page, br
   await access.getByRole("button", { name: "Save access" }).click();
   await expect(access.getByRole("button", { name: "Access saved" })).toBeVisible();
 
-  const ctx = await browser.newContext();
-  const m = await ctx.newPage();
-  await login(m, member);
+  // Revocation is immediate: the same file link stops working on the next request.
+  expect((await m.request.get(fileUrl, { maxRedirects: 0 })).status()).toBe(404);
   await expectNotFound(m, sopUrl);
   await m.goto("/app/sops");
   await expect(m.getByRole("link", { name: "Morning bake schedule" })).toHaveCount(0);
