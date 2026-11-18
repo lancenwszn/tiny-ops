@@ -15,13 +15,21 @@ export default async function CategoriesPage() {
   const { workspace, role } = await getActiveMembership();
   if (!canManageOperations(role)) redirect("/app/sops");
   const supabase = await createClient();
-  const [categories, { data: all }] = await Promise.all([
+  const [categories, { data: docs }, { data: drafts }] = await Promise.all([
     listCategories(workspace.id),
-    // Archived SOPs also block deletion, so count every status.
-    supabase.from("sop_documents").select("category_id").eq("workspace_id", workspace.id).limit(10000),
+    // Archived SOPs and unpublished category changes also block deletion.
+    supabase.from("sop_documents").select("id, category_id").eq("workspace_id", workspace.id).limit(10000),
+    supabase.from("sop_drafts").select("sop_id, category_id").eq("workspace_id", workspace.id).limit(10000),
   ]);
-  const totals = new Map<string, number>();
-  for (const d of all ?? []) if (d.category_id) totals.set(d.category_id, (totals.get(d.category_id) ?? 0) + 1);
+  const sopsByCategory = new Map<string, Set<string>>();
+  const add = (cat: string | null, sop: string) => {
+    if (!cat) return;
+    if (!sopsByCategory.has(cat)) sopsByCategory.set(cat, new Set());
+    sopsByCategory.get(cat)!.add(sop);
+  };
+  for (const d of docs ?? []) add(d.category_id, d.id);
+  for (const d of drafts ?? []) add(d.category_id, d.sop_id);
+  const totals = new Map([...sopsByCategory].map(([cat, set]) => [cat, set.size]));
 
   return (
     <div className="mx-auto max-w-3xl">

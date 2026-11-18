@@ -31,6 +31,8 @@ export const saveDraftSchema = z.object({
   requiresAcknowledgment: z.boolean(),
   sections: z.record(z.string(), z.unknown()),
   steps: z.array(stepSchema).max(100, "An SOP can have up to 100 steps"),
+  saveId: uuid,
+  unconfirmedSaveIds: z.array(uuid).max(20),
 });
 export type SaveDraftInput = z.input<typeof saveDraftSchema>;
 

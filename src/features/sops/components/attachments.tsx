@@ -5,7 +5,8 @@ import { Download, ExternalLink, FileText, ImageIcon, Loader2, Paperclip, Trash2
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/browser";
-import { deleteAttachmentAction, getAttachmentUrlAction, registerAttachmentAction } from "../actions";
+import { deleteAttachmentAction, registerAttachmentAction } from "../actions";
+import { attachmentUrl } from "../attachment-url";
 import { ATTACHMENT_TYPES, MAX_ATTACHMENT_BYTES, attachmentPathPrefix, formatBytes } from "../schemas";
 
 export type ClientAttachment = {
@@ -18,22 +19,14 @@ export type ClientAttachment = {
 
 const ACCEPT = Object.keys(ATTACHMENT_TYPES).join(",");
 
-/** Opens a short-lived signed link (Storage RLS checks access). */
-export async function openAttachment(id: string, download: boolean) {
-  // Open the tab synchronously (inside the click) so popup blockers allow it,
-  // then point it at the short-lived signed URL once we have it.
-  const tab = download ? null : window.open("about:blank", "_blank");
-  const res = await getAttachmentUrlAction(id, download);
-  if (!res.ok) {
-    tab?.close();
-    return toast.error(res.error);
-  }
-  if (download || !tab) {
-    window.location.assign(res.url);
-    return;
-  }
-  tab.opener = null;
-  tab.location.replace(res.url);
+/**
+ * Opens a file through the app's attachment gateway, which re-checks access on
+ * every request. Synchronous, so popup blockers allow it.
+ */
+export function openAttachment(id: string, download: boolean) {
+  const url = attachmentUrl(id, download);
+  if (download) window.location.assign(url);
+  else window.open(url, "_blank", "noopener,noreferrer");
 }
 
 export function AttachmentIcon({ mimeType, className }: { mimeType: string; className?: string }) {
@@ -56,10 +49,10 @@ export function AttachmentList({ attachments }: { attachments: ClientAttachment[
               {ATTACHMENT_TYPES[a.mimeType]?.label ?? "File"} · {formatBytes(a.sizeBytes)}
             </p>
           </div>
-          <Button variant="ghost" size="icon-sm" aria-label={`Open ${a.fileName}`} onClick={() => void openAttachment(a.id, false)}>
+          <Button variant="ghost" size="icon-sm" aria-label={`Open ${a.fileName}`} onClick={() => openAttachment(a.id, false)}>
             <ExternalLink />
           </Button>
-          <Button variant="ghost" size="icon-sm" aria-label={`Download ${a.fileName}`} onClick={() => void openAttachment(a.id, true)}>
+          <Button variant="ghost" size="icon-sm" aria-label={`Download ${a.fileName}`} onClick={() => openAttachment(a.id, true)}>
             <Download />
           </Button>
         </li>
@@ -117,11 +110,15 @@ export function AttachmentManager({
   }
 
   async function remove(a: ClientAttachment) {
-    if (!window.confirm(`Remove ${a.fileName}? Steps or images that use it will no longer show it.`)) return;
+    if (!window.confirm(`Remove ${a.fileName} from this SOP? Steps that use it will no longer show it.`)) return;
     const res = await deleteAttachmentAction(a.id);
     if (!res.ok) return toast.error(res.error);
     onChange(attachments.filter((x) => x.id !== a.id));
-    toast.success("File removed");
+    toast.success(
+      res.kept
+        ? "File removed. Readers keep it until you publish, and it stays in earlier versions."
+        : "File removed",
+    );
   }
 
   return (
@@ -165,7 +162,7 @@ export function AttachmentManager({
                 <p className="truncate text-sm font-semibold">{a.fileName}</p>
                 <p className="text-xs text-muted-foreground">{formatBytes(a.sizeBytes)}</p>
               </div>
-              <Button type="button" variant="ghost" size="icon-sm" aria-label={`Download ${a.fileName}`} onClick={() => void openAttachment(a.id, true)}>
+              <Button type="button" variant="ghost" size="icon-sm" aria-label={`Download ${a.fileName}`} onClick={() => openAttachment(a.id, true)}>
                 <Download />
               </Button>
               <Button type="button" variant="ghost" size="icon-sm" aria-label={`Remove ${a.fileName}`} onClick={() => void remove(a)}>

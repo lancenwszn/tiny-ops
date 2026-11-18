@@ -8,6 +8,7 @@ import type { Json } from "@/types/database";
 import { getActiveMembership, canManageOperations } from "@/lib/workspace/active";
 import { formValues, friendlyError, validationError, type FormState } from "@/lib/forms";
 import { sanitizeSections } from "./content/sanitize";
+import { attachmentUrl } from "./attachment-url";
 import {
   accessSchema,
   attachmentSchema,
@@ -87,6 +88,9 @@ export async function saveSopDraftAction(input: SaveDraftInput): Promise<SaveRes
       notes: s.notes,
       attachment_id: s.attachment_id,
     })),
+    // Lets the server recognise a retried save whose response was lost.
+    p_save_id: d.saveId,
+    p_unconfirmed_save_ids: d.unconfirmedSaveIds,
   });
   if (error || data === null) {
     if (error?.code === "40001") return { ok: false, error: error.message, conflict: true };
@@ -230,26 +234,26 @@ export type AttachmentResult = Result<{
 export async function registerAttachmentAction(input: z.input<typeof attachmentSchema>): Promise<AttachmentResult> {
   const parsed = attachmentSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid file." };
-  const { workspace } = await getActiveMembership();
   const a = parsed.data;
   const supabase = await createClient();
-  if (!isValidAttachmentPath(a.path, workspace.id, a.sopId, a.mimeType)) {
+  // The SOP's own workspace (not the active one): RLS only returns SOPs the
+  // user can read, and the insert below is re-checked for manager rights.
+  const { data: sop } = await supabase.from("sop_documents").select("workspace_id").eq("id", a.sopId).maybeSingle();
+  if (!sop || !isValidAttachmentPath(a.path, sop.workspace_id, a.sopId, a.mimeType)) {
     await supabase.storage.from("sop-attachments").remove([a.path]);
     return { ok: false, error: "Invalid upload location." };
   }
 
   const { data, error } = await supabase
     .from("sop_attachments")
-    .insert({ workspace_id: workspace.id, sop_id: a.sopId, storage_path: a.path, file_name: a.fileName, mime_type: a.mimeType, size_bytes: a.size })
+    .insert({ workspace_id: sop.workspace_id, sop_id: a.sopId, storage_path: a.path, file_name: a.fileName, mime_type: a.mimeType, size_bytes: a.size })
     .select("id, file_name, mime_type, size_bytes, created_at, storage_path")
     .single();
   if (error || !data) {
     await supabase.storage.from("sop-attachments").remove([a.path]);
     return { ok: false, error: friendlyError(error, "We couldn't attach that file.") };
   }
-  const preview = a.mimeType.startsWith("image/")
-    ? (await supabase.storage.from("sop-attachments").createSignedUrl(a.path, 3600)).data?.signedUrl ?? null
-    : null;
+  const preview = a.mimeType.startsWith("image/") ? attachmentUrl(data.id) : null;
   revalidatePath(`/app/sops/${a.sopId}`);
   return {
     ok: true,
@@ -265,25 +269,19 @@ export async function registerAttachmentAction(input: z.input<typeof attachmentS
   };
 }
 
-export async function deleteAttachmentAction(attachmentId: string): Promise<Result> {
+/**
+ * Removes a file from the working copy. Files that are part of a published
+ * version are kept for history (and stay visible to readers until the next
+ * publish); other files are deleted from storage. Orphans left by a failed
+ * storage call are removed by the storage-cleanup job.
+ */
+export async function deleteAttachmentAction(attachmentId: string): Promise<Result<{ kept: boolean }>> {
   if (!uuid.safeParse(attachmentId).success) return { ok: false, error: "Invalid file." };
   const supabase = await createClient();
-  const { data, error } = await supabase.from("sop_attachments").delete().eq("id", attachmentId).select("storage_path, sop_id");
-  if (error || !data?.length) return { ok: false, error: friendlyError(error, "We couldn't remove that file.") };
-  await supabase.storage.from("sop-attachments").remove([data[0].storage_path]);
-  revalidatePath(`/app/sops/${data[0].sop_id}`);
-  return { ok: true };
-}
-
-/** Short-lived signed link. Storage RLS refuses users who cannot read the SOP. */
-export async function getAttachmentUrlAction(attachmentId: string, download: boolean): Promise<Result<{ url: string }>> {
-  if (!uuid.safeParse(attachmentId).success) return { ok: false, error: "Invalid file." };
-  const supabase = await createClient();
-  const { data: att } = await supabase.from("sop_attachments").select("storage_path, file_name").eq("id", attachmentId).maybeSingle();
-  if (!att) return { ok: false, error: "File not found." };
-  const { data, error } = await supabase.storage
-    .from("sop-attachments")
-    .createSignedUrl(att.storage_path, 60, download ? { download: att.file_name } : undefined);
-  if (error || !data?.signedUrl) return { ok: false, error: "You don't have access to this file." };
-  return { ok: true, url: data.signedUrl };
+  const { data: att } = await supabase.from("sop_attachments").select("sop_id").eq("id", attachmentId).maybeSingle();
+  const { data: path, error } = await supabase.rpc("remove_sop_attachment", { p_attachment_id: attachmentId });
+  if (error) return { ok: false, error: friendlyError(error, "We couldn't remove that file.") };
+  if (path) await supabase.storage.from("sop-attachments").remove([path]);
+  if (att) revalidatePath(`/app/sops/${att.sop_id}`, "layout");
+  return { ok: true, kept: !path };
 }

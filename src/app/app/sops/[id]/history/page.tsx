@@ -8,8 +8,9 @@ import { PageHeader } from "@/components/shared/page-header";
 import { SopContentView } from "@/features/sops/components/sop-content";
 import { VersionCompare } from "@/features/sops/components/version-compare";
 import { RestoreButton } from "@/features/sops/components/restore-button";
+import { AttachmentList } from "@/features/sops/components/attachments";
 import { EmptyState } from "@/features/dashboard/components/widget";
-import { getSopEditorData, getVersionContent, listVersions } from "@/features/sops/queries";
+import { getSopEditorData, getVersionContent, imageUrlMap, listAllAttachments, listVersions } from "@/features/sops/queries";
 import { canManageOperations, getActiveMembership } from "@/lib/workspace/active";
 import { cn } from "@/lib/utils";
 
@@ -33,10 +34,14 @@ export default async function SopHistoryPage({ params, searchParams }: PageProps
   const selected = num(sp.v) ?? latest;
   const compareTo = num(sp.compare);
 
-  const [selectedContent, compareContent] = await Promise.all([
+  const [selectedContent, compareContent, allAttachments] = await Promise.all([
     selected ? getVersionContent(id, selected) : null,
     compareTo ? getVersionContent(id, compareTo) : null,
+    listAllAttachments(id),
   ]);
+  // Each version shows the files it was published with (even if since removed).
+  const versionFiles = new Set(selectedContent?.attachmentIds ?? []);
+  const selectedAttachments = allAttachments.filter((a) => versionFiles.has(a.id));
 
   return (
     <div className="mx-auto max-w-[1300px]">
@@ -131,7 +136,15 @@ export default async function SopHistoryPage({ params, searchParams }: PageProps
                   />
                 )}
 
-                <SopContentView content={selectedContent} attachments={editor.attachments} imageUrls={editor.imageUrls} />
+                <SopContentView content={selectedContent} attachments={selectedAttachments} imageUrls={imageUrlMap(selectedAttachments)} />
+                {selectedAttachments.length > 0 && (
+                  <section aria-labelledby="version-files" className="rounded-2xl border border-border bg-card p-5 shadow-card">
+                    <h2 id="version-files" className="mb-3 text-lg font-bold">
+                      Files in this version
+                    </h2>
+                    <AttachmentList attachments={selectedAttachments.map((a) => ({ ...a, previewUrl: null }))} />
+                  </section>
+                )}
               </>
             )}
           </div>

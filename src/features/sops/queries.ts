@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth/session";
 import type { Sections, SopStep } from "./content/model";
 import type { SopSort, SopStatus } from "./schemas";
+import { attachmentUrl } from "./attachment-url";
 
 /**
  * SOP read model. Every query runs as the signed-in user, so RLS decides
@@ -48,6 +49,8 @@ export type Attachment = {
   sizeBytes: number;
   createdAt: string;
   storagePath: string;
+  /** Removed from the working copy but kept for published versions. */
+  removed: boolean;
 };
 
 const DOC_COLUMNS =
@@ -171,23 +174,19 @@ export async function categoryUsage(categoryId: string): Promise<number> {
   return count ?? 0;
 }
 
-export async function signedUrls(paths: string[], expiresIn = 3600): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
-  if (paths.length === 0) return map;
+/**
+ * Attachments of an SOP visible to the viewer. RLS limits members to the files
+ * of the current published version; managers see every file.
+ */
+async function listAttachments(sopId: string, opts: { includeRemoved?: boolean } = {}): Promise<Attachment[]> {
   const supabase = await createClient();
-  // Storage RLS decides: only users who can read the SOP get URLs.
-  const { data } = await supabase.storage.from("sop-attachments").createSignedUrls(paths, expiresIn);
-  for (const item of data ?? []) if (item.signedUrl && item.path) map.set(item.path, item.signedUrl);
-  return map;
-}
-
-async function listAttachments(sopId: string): Promise<Attachment[]> {
-  const supabase = await createClient();
-  const { data } = await supabase
+  let query = supabase
     .from("sop_attachments")
-    .select("id, file_name, mime_type, size_bytes, created_at, storage_path")
+    .select("id, file_name, mime_type, size_bytes, created_at, storage_path, removed_at")
     .eq("sop_id", sopId)
     .order("created_at");
+  if (!opts.includeRemoved) query = query.is("removed_at", null);
+  const { data } = await query;
   return (data ?? []).map((a) => ({
     id: a.id,
     fileName: a.file_name,
@@ -195,14 +194,13 @@ async function listAttachments(sopId: string): Promise<Attachment[]> {
     sizeBytes: a.size_bytes,
     createdAt: a.created_at,
     storagePath: a.storage_path,
+    removed: a.removed_at !== null,
   }));
 }
 
-/** Map of attachment id -> signed URL for image attachments. */
-async function imageUrlMap(attachments: Attachment[]): Promise<Record<string, string>> {
-  const images = attachments.filter((a) => a.mimeType.startsWith("image/"));
-  const urls = await signedUrls(images.map((a) => a.storagePath));
-  return Object.fromEntries(images.flatMap((a) => (urls.get(a.storagePath) ? [[a.id, urls.get(a.storagePath)!]] : [])));
+/** Image attachment id -> app URL (access re-checked on every request). */
+export function imageUrlMap(attachments: Attachment[]): Record<string, string> {
+  return Object.fromEntries(attachments.filter((a) => a.mimeType.startsWith("image/")).map((a) => [a.id, attachmentUrl(a.id)]));
 }
 
 export type SopContent = {
@@ -211,6 +209,8 @@ export type SopContent = {
   categoryName: string | null;
   sections: Sections;
   steps: SopStep[];
+  /** Files that belong to this content (a version's files, or the working copy's). */
+  attachmentIds?: string[];
 };
 
 export type SopDetail = {
@@ -234,11 +234,11 @@ export const getSopDetail = cache(async (sopId: string, workspaceId: string): Pr
   const [people, dirty, attachments, versionRes, ackRes] = await Promise.all([
     loadPeople([docRow.owner_id]),
     unpublishedSet([sopId]),
-    listAttachments(sopId),
+    listAttachments(sopId, { includeRemoved: true }),
     docRow.current_version > 0
       ? supabase
           .from("sop_versions")
-          .select("version, title, description, category_name, sections, steps, revision_note, published_at, published_by")
+          .select("version, title, description, category_name, sections, steps, revision_note, published_at, published_by, attachment_ids")
           .eq("sop_id", sopId)
           .eq("version", docRow.current_version)
           .maybeSingle()
@@ -265,6 +265,7 @@ export const getSopDetail = cache(async (sopId: string, workspaceId: string): Pr
       categoryName: v.category_name,
       sections: (v.sections ?? {}) as Sections,
       steps: (v.steps ?? []) as SopStep[],
+      attachmentIds: v.attachment_ids ?? [],
     };
     version = { number: v.version, publishedAt: v.published_at, publishedBy: publisher?.name ?? null, note: v.revision_note };
   } else {
@@ -278,24 +279,40 @@ export const getSopDetail = cache(async (sopId: string, workspaceId: string): Pr
         categoryName: docRow.category?.name ?? null,
         sections: editor.draft.sections,
         steps: editor.steps,
+        attachmentIds: editor.attachments.map((a) => a.id),
       };
     }
   }
+
+  // Show exactly the files of the content being displayed (H2).
+  const shown = content?.attachmentIds ? new Set(content.attachmentIds) : null;
+  const visibleAttachments = shown ? attachments.filter((a) => shown.has(a.id)) : [];
 
   return {
     doc: { ...toListItem(docRow, people, dirty), workspaceId: docRow.workspace_id },
     content,
     isPreview,
     version,
-    attachments,
-    imageUrls: await imageUrlMap(attachments),
+    attachments: visibleAttachments,
+    imageUrls: imageUrlMap(visibleAttachments),
     myAcknowledgment: ackRes.data ? { version: ackRes.data.version, at: ackRes.data.acknowledged_at } : null,
   };
 });
 
 export type SopEditorData = {
   doc: SopListItem & { workspaceId: string };
-  draft: { title: string; description: string; sections: Sections; revision: number; updatedAt: string; dirty: boolean };
+  draft: {
+    title: string;
+    description: string;
+    sections: Sections;
+    revision: number;
+    updatedAt: string;
+    dirty: boolean;
+    /** Staged metadata: goes live on publish. */
+    categoryId: string | null;
+    ownerId: string | null;
+    requiresAcknowledgment: boolean;
+  };
   steps: SopStep[];
   attachments: Attachment[];
   imageUrls: Record<string, string>;
@@ -307,7 +324,11 @@ export const getSopEditorData = cache(async (sopId: string, workspaceId: string)
   const supabase = await createClient();
   const [{ data: row }, { data: draft }, { data: steps }, { data: perms }] = await Promise.all([
     supabase.from("sop_documents").select(DOC_COLUMNS).eq("id", sopId).eq("workspace_id", workspaceId).maybeSingle(),
-    supabase.from("sop_drafts").select("title, description, sections, revision, updated_at, dirty").eq("sop_id", sopId).maybeSingle(),
+    supabase
+      .from("sop_drafts")
+      .select("title, description, sections, revision, updated_at, dirty, category_id, owner_id, requires_acknowledgment")
+      .eq("sop_id", sopId)
+      .maybeSingle(),
     supabase.from("sop_steps").select("title, instructions, notes, attachment_id, position").eq("sop_id", sopId).order("position"),
     supabase.from("sop_permissions").select("role, user_id").eq("sop_id", sopId),
   ]);
@@ -323,10 +344,13 @@ export const getSopEditorData = cache(async (sopId: string, workspaceId: string)
       revision: draft.revision,
       updatedAt: draft.updated_at,
       dirty: draft.dirty,
+      categoryId: draft.category_id,
+      ownerId: draft.owner_id,
+      requiresAcknowledgment: draft.requires_acknowledgment,
     },
     steps: (steps ?? []).map((s) => ({ title: s.title, instructions: s.instructions, notes: s.notes, attachment_id: s.attachment_id })),
     attachments,
-    imageUrls: await imageUrlMap(attachments),
+    imageUrls: imageUrlMap(attachments),
     access: {
       membersRole: (perms ?? []).some((p) => p.role === "member"),
       userIds: (perms ?? []).flatMap((p) => (p.user_id ? [p.user_id] : [])),
@@ -365,7 +389,7 @@ export async function getVersionContent(sopId: string, version: number): Promise
   const supabase = await createClient();
   const { data } = await supabase
     .from("sop_versions")
-    .select("title, description, category_name, sections, steps")
+    .select("title, description, category_name, sections, steps, attachment_ids")
     .eq("sop_id", sopId)
     .eq("version", version)
     .maybeSingle();
@@ -376,7 +400,13 @@ export async function getVersionContent(sopId: string, version: number): Promise
     categoryName: data.category_name,
     sections: (data.sections ?? {}) as Sections,
     steps: (data.steps ?? []) as SopStep[],
+    attachmentIds: data.attachment_ids ?? [],
   };
+}
+
+/** Every file of an SOP including removed ones (managers; for version history). */
+export async function listAllAttachments(sopId: string): Promise<Attachment[]> {
+  return listAttachments(sopId, { includeRemoved: true });
 }
 
 export type AckRow = {

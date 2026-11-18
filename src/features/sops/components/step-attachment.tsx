@@ -18,7 +18,7 @@ export function StepAttachment({
     );
   }
   return (
-    <Button variant="outline" size="sm" className="mt-3" onClick={() => void openAttachment(attachment.id, true)}>
+    <Button variant="outline" size="sm" className="mt-3" onClick={() => openAttachment(attachment.id, true)}>
       <AttachmentIcon mimeType={attachment.mimeType} className="size-4" /> {attachment.fileName} <Download className="opacity-60" />
     </Button>
   );
