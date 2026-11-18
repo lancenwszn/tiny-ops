@@ -65,6 +65,6 @@ After changing migrations, run `npm run db:reset` and then `npm run db:types`.
 | Item | Needed for |
 |---|---|
 | Stripe secret key, webhook secret, price IDs for Starter/Growth/Business | Stage 8 billing |
-| `CRON_SECRET` + Vercel Cron | Stage 5 checklist generation backup |
+| `CRON_SECRET` + Vercel Cron | **Now required:** hourly `/api/cron/storage-cleanup` (configured in `vercel.json`) removes orphaned SOP files. Stage 5 also uses it for checklist generation |
 | Email provider key (e.g. Resend) | Stage 6 invitation emails (copying the invite link works without one) |
 | AI provider key | Stage 7 TinyOps AI (the panel stays clearly disabled until a key is set) |

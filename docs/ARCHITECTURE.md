@@ -114,12 +114,12 @@ Tables planned for later stages: `tasks`, `task_comments`, `task_activity`, `che
 |---|---|
 | `sop_categories` | Per-workspace categories. The 7 defaults are seeded by a trigger on workspace creation. Categories can be renamed, archived, or deleted once their SOPs have been moved (`delete_sop_category`) |
 | `sop_documents` | One row per SOP: category, owner, status, visibility, `requires_acknowledgment`, `current_version`, plus the **published** title, description and full-text index (`search`). Members read this |
-| `sop_drafts` | The editable **working copy**: title, description and rich-text `sections`, a `dirty` flag (differs from the published version) and a `revision` counter for optimistic concurrency. Owners and admins only |
+| `sop_drafts` | The editable **working copy**: title, description, rich-text `sections` and staged metadata (category, owner, acknowledgment), a `dirty` flag (recomputed by comparing with the published version), a `revision` counter and `last_save_id` for optimistic concurrency. Owners and admins only |
 | `sop_steps` | Ordered steps of the working copy (title, instructions, notes, optional attachment) |
-| `sop_versions` | Immutable snapshots created on publish (content + steps jsonb, revision note, publisher, `restored_from_version`) |
+| `sop_versions` | Immutable snapshots created on publish: content, steps, metadata, `attachment_ids`, revision note, publisher and `restored_from_version` |
 | `sop_permissions` | Grants for restricted SOPs: the Members role or specific members |
 | `sop_acknowledgments` | One row per user **per version** (FK to `sop_versions`) |
-| `sop_attachments` | Files in the private `sop-attachments` bucket at `<workspace>/<sop>/<uuid>.<ext>` |
+| `sop_attachments` | Files in the private `sop-attachments` bucket at `<workspace>/<sop>/<uuid>.<ext>`. `removed_at` marks files removed from the working copy but kept for published versions |
 
 **Why a separate draft table:** RLS filters rows, not columns. Keeping unpublished edits in `sop_drafts`, which owners and admins read, means members can never see work-in-progress on a published SOP, whether in the UI, through the API or in search.
 
@@ -132,7 +132,15 @@ Tables planned for later stages: `tasks`, `task_comments`, `task_activity`, `che
 
 **Rich text:** the editor is Tiptap (StarterKit, task lists, tables, images, links). Editor JSON goes through `sanitizeSections()` (an allowlist of nodes, marks and attributes; `http`, `https` and `mailto` links only; images only as `attachmentId` references) before every save. It is sanitized **again** when rendered by `RichText`, a React renderer that never uses `dangerouslySetInnerHTML`. Images resolve to short-lived signed URLs.
 
-**Editor reliability:** autosave runs 1.5 s after the last edit, ⌘S saves immediately, and failed saves retry every 10 s. Concurrent saves are queued. A conflict (someone else saved first) locks the editor with a clear message. A `beforeunload` prompt and an in-app link guard warn before you leave with unsaved changes.
+**Editor reliability:**
+- **Saving:** autosave runs 1.5 s after the last edit, ⌘S saves immediately, and failed saves retry every 10 s. Concurrent saves are queued.
+- **Lost responses:** each attempt carries a `saveId`, and attempts whose responses were lost are sent back as `unconfirmedSaveIds`, so the server recognises the client's own earlier save.
+- **Conflicts:** a genuine conflict (someone else saved) locks the editor, and the rich-text editors become read-only.
+- **Leaving the page:** a `beforeunload` prompt, a link guard and a shared guard (`src/lib/unsaved-changes.ts`) cover the workspace switcher, the command palette and sign-out. Pending work is flushed when the page is hidden or the editor unmounts (for example, the browser Back button).
+- **Local backup:** unsaved content is also kept on this device (`localStorage`, cleared after a successful save). On the next visit the editor offers to restore anything the server doesn't have.
+- **Archived SOPs** open read-only.
+
+**Attachment access:** see `docs/SECURITY.md`. Pages never embed storage URLs; `/api/sops/attachments/[id]` checks access on every request and redirects to a 30-second signed URL.
 
 ## Recurring checklists (Stage 5 design)
 

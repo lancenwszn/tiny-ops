@@ -39,9 +39,14 @@
 - **Integrity:** composite foreign keys ensure a SOP's category and owner, a step's attachment and an acknowledgment's version all belong to the same workspace or SOP.
 - **Content:** editor JSON is sanitized on save and again on render (allowlist, safe links only, no inline HTML, no external images).
 - **Attachments:** private bucket with a type allowlist (no HTML or SVG) and a 10 MB limit, enforced by the bucket, the database check constraint and the server.
-  - Paths must be `<workspace>/<sop>/<uuid>.<ext>` (validated by the server action and a DB check).
-  - Download links are signed URLs created under the user's own session, so storage RLS refuses anyone who can't read the SOP. They last 60 s for downloads and 1 h for inline images.
-  - A per-workspace storage quota comes from the plan.
+  - Paths must be `<workspace>/<sop>/<uuid>.<ext>` (validated by the server action against the SOP's own workspace, plus a DB check).
+  - Files are **versioned**. Each published version records its files (`sop_versions.attachment_ids`). Members can only read the rows and storage objects of the **current published version**, so files added while drafting stay private until published. Removing a published file only removes it from the working copy; the file stays in earlier versions.
+  - **No long-lived links:** pages link to `/api/sops/attachments/<id>`. Every request re-checks access under the user's session (RLS on the row, then storage RLS) and redirects to a 30-second signed URL, with `Cache-Control: no-store`. Revoking access (restricting the SOP, deactivating the member) takes effect on the next request. The only remaining window is a signed URL that has already been issued, valid for up to 30 s.
+  - **Quota** counts the bytes actually stored in the workspace's folder, including unregistered files. Uploads are refused once it is reached (overshoot is at most one 10 MB file).
+  - **Deletion** goes through `remove_sop_attachment`; there is no direct `DELETE` on the table. `sop_orphan_objects()` (service role only) lists stored files with no record, and `/api/cron/storage-cleanup` (protected by `CRON_SECRET`, run hourly by Vercel Cron) deletes them. That covers failed uploads and deleted workspaces.
+- **Activity feed:** SOP events are only readable by people who can currently read that SOP (RLS). They never store titles; titles are looked up live under the viewer's permissions, so draft or restricted titles can't leak, including earlier draft titles of a now-published SOP.
+- **Staged metadata:** category, owner and acknowledgment settings are part of the draft and only go live on publish. "You own this SOP" notifications are sent on publish, and only to owners who can read it. SOP owners who are members do **not** get draft access.
+- **Concurrency:** publish and restore lock the working copy before reading it. The "unpublished changes" flag is recomputed from content, never forced, and restore checks it live. Saves carry a client save id, so a retried save whose response was lost isn't reported as a conflict, while a genuine concurrent edit still is.
 
 ## Uploads
 - The public `branding` bucket accepts only PNG, JPEG or WebP up to 2 MB. SVG is excluded because it can carry scripts.

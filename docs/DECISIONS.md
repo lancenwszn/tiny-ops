@@ -23,4 +23,11 @@
 | 19 | **Custom React renderer for SOP rich text** instead of `generateHTML` + `dangerouslySetInnerHTML`. | It works with server rendering and is XSS-safe by construction; it re-sanitizes even content written directly through the API. |
 | 20 | **Restore = new version.** Restoring refuses to overwrite unpublished edits unless the user confirms. | History is never rewritten, and no change is lost silently. |
 | 21 | **Acknowledgments are keyed by (SOP, version, user).** | An acknowledgment of v2 never counts for v3. Publishing a new version notifies everyone who can read the SOP. |
-| 22 | **Attachments belong to the SOP, not to a version.** | Keeps storage simple. Removing a file also removes it from old versions (documented as a known limitation). |
+| 22 | ~~Attachments belong to the SOP, not to a version.~~ Superseded by #23. | — |
+| 23 | **Attachments are versioned** (`sop_versions.attachment_ids`, soft removal with `removed_at`). | Audit H2: unpublished files must not be visible, and history must keep its files. |
+| 24 | **SOP activity stores no titles;** titles are looked up live under RLS. | Audit H1: the log is append-only, but titles change and visibility changes, so the log must not freeze secrets. |
+| 25 | **Category, owner and acknowledgment are staged in the draft.** Access (visibility) stays an immediate setting. | Audit M1: what readers see should only change on publish; access is a deliberate, separate control. |
+| 26 | **SOP owners (members) do not get draft access.** | Drafts stay restricted to owners and admins (spec); owners are told about their SOP when it is published. |
+| 27 | **App gateway route with 30-second signed URLs** instead of 1-hour signed URLs in pages. | Audit M3: access is re-checked on every request. Redirecting (rather than proxying bytes) avoids serverless response-size limits for 10 MB files. |
+| 28 | **Quota from stored objects, plus an hourly orphan sweep** (`CRON_SECRET`). | Audit M4: SQL can't delete storage objects safely, so a service-role job does it through the Storage API. |
+| 29 | **Client save ids for idempotent retries,** plus a local backup of unconfirmed content. | Audit M6: a lost response must not look like someone else's edit, and nothing should be lost when navigation can't be intercepted. |
