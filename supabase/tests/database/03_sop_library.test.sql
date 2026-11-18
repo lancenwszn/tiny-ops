@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(91);
+select plan(92);
 
 create function pg_temp.as_user(p_uid uuid) returns void language plpgsql as $$
 begin
@@ -275,8 +275,12 @@ select throws_ok(format($$ insert into public.sop_attachments (workspace_id, sop
 select pg_temp.as_user('c3000000-0000-0000-0000-00000000000c');
 select throws_ok(format($$ insert into storage.objects (bucket_id, name, owner) values ('sop-attachments', '%s/%s/evil.pdf', auth.uid()) $$,
   pg_temp.ctx('ws_a'), pg_temp.ctx('sop1')), '42501', null, 'members cannot upload attachments');
-select is((select count(*)::int from storage.objects where bucket_id = 'sop-attachments' and name like '%manual.pdf'), 1, 'members can download attachments of SOPs they can read');
+select is((select count(*)::int from storage.objects where bucket_id = 'sop-attachments' and name like '%manual.pdf'), 0, 'files added after publishing stay hidden until republished');
 select is((select count(*)::int from storage.objects where bucket_id = 'sop-attachments' and name like '%draft.pdf'), 0, 'members cannot download draft attachments');
+select pg_temp.as_user('a3000000-0000-0000-0000-00000000000a');
+select public.publish_sop(pg_temp.id('sop1'), 'Added the manual');
+select pg_temp.as_user('c3000000-0000-0000-0000-00000000000c');
+select is((select count(*)::int from storage.objects where bucket_id = 'sop-attachments' and name like '%manual.pdf'), 1, 'members can download files of the published version');
 
 select pg_temp.as_user('b3000000-0000-0000-0000-00000000000b');
 select is((select count(*)::int from storage.objects where bucket_id = 'sop-attachments'), 0, 'other workspaces cannot download attachments');
