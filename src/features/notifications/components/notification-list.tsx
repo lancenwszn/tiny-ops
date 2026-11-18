@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Mail, UserPlus, UserCog, Bell, type LucideIcon } from "lucide-react";
+import { Mail, UserPlus, UserCog, Bell, ShieldCheck, BookOpenText, type LucideIcon } from "lucide-react";
 import { RelativeTime } from "@/components/shared/relative-time";
 import type { NotificationItem } from "../queries";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,8 @@ const ICONS: Record<string, { icon: LucideIcon; tint: string }> = {
   invitation: { icon: Mail, tint: "bg-tint-violet text-tint-violet-fg" },
   "member.joined": { icon: UserPlus, tint: "bg-tint-green text-tint-green-fg" },
   "member.role_changed": { icon: UserCog, tint: "bg-tint-sky text-tint-sky-fg" },
+  "sop.ack_required": { icon: ShieldCheck, tint: "bg-tint-amber text-tint-amber-fg" },
+  "sop.owner_assigned": { icon: BookOpenText, tint: "bg-tint-violet text-tint-violet-fg" },
 };
 
 export function NotificationRow({
@@ -60,7 +62,7 @@ export function NotificationsEmpty() {
         <Bell className="size-6" />
       </span>
       <p className="mt-3 font-semibold">You&apos;re all caught up</p>
-      <p className="mt-1 text-sm text-muted-foreground">Invitations, new teammates and role changes will show up here.</p>
+      <p className="mt-1 text-sm text-muted-foreground">Invitations, new teammates, role changes and SOPs to review will show up here.</p>
     </div>
   );
 }

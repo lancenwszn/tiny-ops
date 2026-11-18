@@ -20,6 +20,7 @@ import {
   getOperationsInputs,
   getRecentActivity,
   getRecentSops,
+  getSopCounts,
   getTeamSnapshot,
   getUpcomingTasks,
 } from "@/features/dashboard/queries";
@@ -92,7 +93,7 @@ async function CalendarSection({ workspaceId, timezone }: { workspaceId: string;
 }
 
 async function SetupSection({ workspaceId, role, hasLogo, hasProfile }: { workspaceId: string; role: string; hasLogo: boolean; hasProfile: boolean }) {
-  const team = await getTeamSnapshot(workspaceId);
+  const [team, sopCounts] = await Promise.all([getTeamSnapshot(workspaceId), getSopCounts(workspaceId)]);
   const canInvite = role === "owner" || role === "admin";
   const steps: SetupStep[] = [
     { key: "workspace", label: "Create your workspace", done: true },
@@ -110,7 +111,13 @@ async function SetupSection({ workspaceId, role, hasLogo, hasProfile }: { worksp
         </InviteMemberDialog>
       ) : undefined,
     },
-    { key: "sop", label: "Write your first SOP", done: false, soon: !modules.sops.available, href: modules.sops.available ? `${modules.sops.href}/new` : undefined },
+    {
+      key: "sop",
+      label: canInvite ? "Write your first SOP" : "Read your team's SOPs",
+      done: (sopCounts?.total ?? 0) > 0,
+      soon: !modules.sops.available,
+      href: modules.sops.available ? (canInvite ? `${modules.sops.href}/new` : modules.sops.href) : undefined,
+    },
     {
       key: "checklist",
       label: "Set up a recurring checklist",
@@ -132,5 +139,6 @@ async function UpcomingSection({ workspaceId }: { workspaceId: string }) {
 }
 
 async function SopsSection({ workspaceId, canCreate }: { workspaceId: string; canCreate: boolean }) {
-  return <RecentSops sops={await getRecentSops(workspaceId)} canCreate={canCreate} />;
+  const [sops, counts] = await Promise.all([getRecentSops(workspaceId), getSopCounts(workspaceId)]);
+  return <RecentSops sops={sops} canCreate={canCreate} counts={counts} />;
 }

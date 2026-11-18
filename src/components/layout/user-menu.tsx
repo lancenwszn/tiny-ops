@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { signOutAction } from "@/features/auth/actions";
+import { confirmNavigation } from "@/lib/unsaved-changes";
 import { initials } from "@/lib/utils";
 
 export function UserMenu({ name, email, avatarUrl }: { name: string; email: string; avatarUrl: string | null }) {
@@ -45,7 +46,12 @@ export function UserMenu({ name, email, avatarUrl }: { name: string; email: stri
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <form action={signOutAction}>
+        <form
+          action={signOutAction}
+          onSubmit={(e) => {
+            if (!confirmNavigation()) e.preventDefault();
+          }}
+        >
           <DropdownMenuItem asChild variant="destructive">
             <button type="submit" className="w-full">
               <LogOut /> Sign out

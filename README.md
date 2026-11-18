@@ -7,9 +7,9 @@
 | Stage | Scope | State |
 |---|---|---|
 | 1 | Foundation: design system, auth, workspaces, RLS | ✅ Done |
-| 2 | App shell and operational dashboard | ✅ Done (in review) |
-| 3 | SOP management | Next |
-| 4 | Task management | Planned |
+| 2 | App shell and operational dashboard | ✅ Done |
+| 3 | SOP management | ✅ Done (in review) |
+| 4 | Task management | Next |
 | 5 | Recurring checklists | Planned |
 | 6 | Team management and handovers | Planned |
 | 7 | Notifications, activity, reports, AI | Planned |

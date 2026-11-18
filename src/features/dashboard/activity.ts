@@ -5,6 +5,11 @@ export type ActivityEntry = {
   createdAt: string;
   actorName: string | null;
   actorAvatarPath: string | null;
+  /**
+   * Current title of the entity, looked up under the viewer's permissions
+   * (SOP events never store titles, so drafts/restricted titles can't leak).
+   */
+  entityTitle?: string | null;
 };
 
 export type ActivityTone = "green" | "sky" | "violet" | "amber" | "coral" | "muted";
@@ -13,8 +18,9 @@ const ROLE = (r: unknown) => (r === "admin" ? "an admin" : r === "owner" ? "the 
 const str = (v: unknown, fallback = "") => (typeof v === "string" && v ? v : fallback);
 
 /** Turns an activity_log row into "<actor> <description>" for the team feed. */
-export function describeActivity(entry: Pick<ActivityEntry, "action" | "metadata">): { text: string; tone: ActivityTone } {
+export function describeActivity(entry: Pick<ActivityEntry, "action" | "metadata" | "entityTitle">): { text: string; tone: ActivityTone } {
   const m = entry.metadata ?? {};
+  const sop = entry.entityTitle ? `“${entry.entityTitle}”` : "an SOP";
   switch (entry.action) {
     case "workspace.created":
       return { text: `created the workspace ${str(m.name)}`.trim(), tone: "green" };
@@ -44,6 +50,28 @@ export function describeActivity(entry: Pick<ActivityEntry, "action" | "metadata
       return { text: "left the workspace", tone: "amber" };
     case "member.removed":
       return { text: `removed ${str(m.name, "a teammate")} from the workspace`, tone: "coral" };
+    case "sop.created":
+      return { text: entry.entityTitle ? `started a new SOP ${sop}` : "started a new SOP", tone: "violet" };
+    case "sop.published":
+      return { text: `published ${sop} (v${Number(m.version) || 1})`, tone: "green" };
+    case "sop.version_restored":
+      return { text: `restored ${sop} to version ${Number(m.restored_from) || "?"}`, tone: "sky" };
+    case "sop.archived":
+      return { text: `archived ${sop}`, tone: "muted" };
+    case "sop.unarchived":
+      return { text: `restored ${sop} from the archive`, tone: "green" };
+    case "sop.duplicated":
+      return { text: entry.entityTitle ? `created ${sop} as a copy` : "duplicated an SOP", tone: "violet" };
+    case "sop.access_changed":
+      return { text: `made ${sop} ${m.visibility === "restricted" ? "restricted" : "visible to everyone"}`, tone: "sky" };
+    case "sop_category.created":
+      return { text: `added the SOP category ${str(m.name)}`, tone: "violet" };
+    case "sop_category.renamed":
+      return { text: `renamed the SOP category ${str(m.from)} to ${str(m.name)}`, tone: "sky" };
+    case "sop_category.archived":
+      return { text: `archived the SOP category ${str(m.name)}`, tone: "muted" };
+    case "sop_category.deleted":
+      return { text: `deleted the SOP category ${str(m.name)}`, tone: "coral" };
     case "invitation.revoked":
       return { text: "revoked a pending invitation", tone: "amber" };
     default:
